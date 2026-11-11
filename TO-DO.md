@@ -24,19 +24,20 @@ Source: LA Metro rail GTFS — https://gitlab.com/LACMTA/gtfs_rail
 
 ## 3. Process into map data
 Script `scripts/build-map.mjs` → writes `public/data/metro.json`
-- [ ] For each route: pick the longest/most common shape as the canonical path
-- [ ] Get the ordered station list per line (from a representative trip's `stop_times`)
-- [ ] Merge platforms into one station by `parent_station` (e.g. 7th St/Metro, Union Station)
-- [ ] Mark transfer stations (served by 2+ lines)
-- [ ] Project lat/lon → x/y (simple equirectangular around ~34.05°N is fine)
-- [ ] Grab line colors from `routes.txt` (`route_color`) as a starting point, tweak later
-- [ ] Keep the JSON small: lines, ordered station ids, station names + x/y, transfer flags
+- [x] For each route: pick the longest/most common shape as the canonical path
+- [x] Get the ordered station list per line (from a representative trip's `stop_times`)
+- [x] Merge platforms into one station by `parent_station` (e.g. 7th St/Metro, Union Station)
+- [x] Mark transfer stations (served by 2+ lines)
+- [x] Project lat/lon → x/y (simple equirectangular around ~34.05°N is fine)
+- [x] Grab line colors from `routes.txt` (`route_color`) as a starting point, tweak later
+- [x] Keep the JSON small: lines, ordered station ids, station names + x/y, transfer flags
 
 ## 4. Schematize (the hard/fun part)
 - [ ] Simplify each line to just its stations (drop the wiggly shape points)
 - [ ] Snap each segment to octilinear directions (0/45/90/135°), adding one bend where needed
 - [ ] Nudge stations to keep min spacing so labels don't collide
 - [ ] Offset parallel lines where they share track (A/E downtown, B/D trunk) so both colors show
+- [ ] Draw the A Line's one-way Long Beach loop (`extraPaths` in metro.json) without it looking messy
 - [ ] Allow a hand-tuned override file (`data/overrides.json`) for stations that look bad
 - [ ] Sanity check: it should still *feel* like LA — Santa Monica left, Long Beach bottom,
       North Hollywood top, Pomona/APU far right
