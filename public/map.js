@@ -15,7 +15,8 @@ function el(name, attrs = {}, parent) {
   return node;
 }
 
-const lineColor = (line) => `var(--line-${line.id.toLowerCase()}, ${line.color})`;
+const lineColor = (line) =>
+  `var(--line-${line.id.toLowerCase()}, ${line.color})`;
 
 // Polyline → path data with each bend rounded off. The curve starts and ends `r` from the
 // corner, or halfway along a leg that is shorter than that.
@@ -23,15 +24,57 @@ function toD(pts, r = 0) {
   const n = (v) => +v.toFixed(3);
   let d = `M${pts[0][0]} ${pts[0][1]}`;
   for (let i = 1; i < pts.length; i++) {
-    const [x, y] = pts[i], next = pts[i + 1];
-    if (!next || !r) { d += `L${x} ${y}`; continue; }
-    const [px, py] = pts[i - 1], [nx, ny] = next;
-    const inLen = Math.hypot(x - px, y - py), outLen = Math.hypot(nx - x, ny - y);
+    const [x, y] = pts[i],
+      next = pts[i + 1];
+    if (!next || !r) {
+      d += `L${x} ${y}`;
+      continue;
+    }
+    const [px, py] = pts[i - 1],
+      [nx, ny] = next;
+    const inLen = Math.hypot(x - px, y - py),
+      outLen = Math.hypot(nx - x, ny - y);
     const cut = Math.min(r, inLen / 2, outLen / 2);
-    d += `L${n(x - ((x - px) / inLen) * cut)} ${n(y - ((y - py) / inLen) * cut)}`
-      + `Q${x} ${y} ${n(x + ((nx - x) / outLen) * cut)} ${n(y + ((ny - y) / outLen) * cut)}`;
+    d +=
+      `L${n(x - ((x - px) / inLen) * cut)} ${n(y - ((y - py) / inLen) * cut)}` +
+      `Q${x} ${y} ${n(x + ((nx - x) / outLen) * cut)} ${n(y + ((ny - y) / outLen) * cut)}`;
   }
   return d;
+}
+
+// Extends a polyline at both ends and returns the T-bar crossbar segments
+function withTerminus(pts, stemLen, barHalfWidth) {
+  if (pts.length < 2) return { extended: pts, bars: "" };
+  const copy = pts.map((p) => [...p]);
+  const n = (v) => +v.toFixed(3);
+  let bars = "";
+
+  // Helper to extend an endpoint and build the perpendicular crossbar
+  const cap = (tipIdx, prevIdx) => {
+    const [x, y] = copy[tipIdx];
+    const [px, py] = copy[prevIdx];
+    const len = Math.hypot(x - px, y - py);
+    if (!len) return;
+    const dx = (x - px) / len,
+      dy = (y - py) / len;
+    const nx = -dy,
+      ny = dx;
+
+    // Move the endpoint outward past the station circle
+    const tx = x + dx * stemLen,
+      ty = y + dy * stemLen;
+    copy[tipIdx] = [tx, ty];
+
+    // Draw perpendicular crossbar at the new tip
+    bars +=
+      `M${n(tx - nx * barHalfWidth)} ${n(ty - ny * barHalfWidth)}` +
+      `L${n(tx + nx * barHalfWidth)} ${n(ty + ny * barHalfWidth)}`;
+  };
+
+  cap(0, 1); // Start terminus
+  cap(copy.length - 1, copy.length - 2); // End terminus
+
+  return { extended: copy, bars };
 }
 
 async function loadMap() {
@@ -45,51 +88,98 @@ function draw(map) {
   const { lane, bounds: b } = map.layout;
   const size = {
     line: lane, // lanes are one stroke apart, so shared track reads as touching ribbons
-    dot: lane * 0.75, edge: lane * 0.22,
+    dot: lane * 0.75,
+    edge: lane * 0.22,
     corner: 0.5, // bend radius, in schematic units
   };
-  svg.setAttribute("viewBox",
-    [b.minX - PAD, b.minY - PAD, b.maxX - b.minX + 2 * PAD, b.maxY - b.minY + 2 * PAD].join(" "));
+  svg.setAttribute(
+    "viewBox",
+    [
+      b.minX - PAD,
+      b.minY - PAD,
+      b.maxX - b.minX + 2 * PAD,
+      b.maxY - b.minY + 2 * PAD,
+    ].join(" "),
+  );
   svg.replaceChildren();
 
-  const layers = Object.fromEntries(["lines", "stations", "trains", "overlay"]
-    .map((id) => [id, el("g", { id }, svg)]));
+  const layers = Object.fromEntries(
+    ["lines", "stations", "trains", "overlay"].map((id) => [
+      id,
+      el("g", { id }, svg),
+    ]),
+  );
   layers.trains.setAttribute("aria-hidden", "true");
 
   const lineById = new Map(map.lines.map((l) => [l.id, l]));
   for (const line of map.lines) {
     for (const [i, part] of [line, ...(line.extraPaths ?? [])].entries()) {
-      const path = el("path", {
-        class: "line", d: toD(part.path, size.corner), "stroke-width": size.line,
-        "data-line": line.id, ...(i && { "data-extra": i }),
-      }, layers.lines);
+      let d;
+      if (i === 0) {
+        // Main line: extend 0.65 units past terminal stations, crossbar 0.42 units each side
+        const { extended, bars } = withTerminus(
+          part.path,
+          lane * 2.2,
+          lane * 1.4,
+        );
+        d = toD(extended, size.corner) + bars;
+      } else {
+        d = toD(part.path, size.corner);
+      }
+      const path = el(
+        "path",
+        {
+          class: "line",
+          d,
+          "stroke-width": size.line,
+          "data-line": line.id,
+          ...(i && { "data-extra": i }),
+        },
+        layers.lines,
+      );
       path.style.stroke = lineColor(line);
     }
   }
 
   // Tab order follows the lines, end to end.
-  const order = new Set(map.lines.flatMap((l) =>
-    [l, ...(l.extraPaths ?? [])].flatMap((part) => part.stations)));
+  const order = new Set(
+    map.lines.flatMap((l) =>
+      [l, ...(l.extraPaths ?? [])].flatMap((part) => part.stations),
+    ),
+  );
   const stations = [];
   for (const id of order) {
     const s = map.stations[id];
     if (!s) continue;
     const lines = s.lines.map((l) => lineById.get(l)).filter(Boolean);
     const names = lines.map((l) => l.id).join(", ");
-    const g = el("g", {
-      class: s.transfer ? "station transfer" : "station", tabindex: 0, role: "img",
-      "aria-label": `${s.name}, ${names} ${lines.length > 1 ? "lines" : "line"}`,
-    }, layers.stations);
+    const g = el(
+      "g",
+      {
+        class: s.transfer ? "station transfer" : "station",
+        tabindex: 0,
+        role: "img",
+        "aria-label": `${s.name}, ${names} ${lines.length > 1 ? "lines" : "line"}`,
+      },
+      layers.stations,
+    );
     // Every station is the same white disc with a dark edge, a bit wider than a line. One that
     // has to sit over more lanes than that grows just enough to cover them.
-    const span = Math.max(0, ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)));
+    const span = Math.max(
+      0,
+      ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)),
+    );
     const r = Math.max(size.dot, span + lane * 0.6);
     el("circle", { cx: s.x, cy: s.y, r, "stroke-width": size.edge }, g);
     const reach = r + size.edge / 2;
     stations.push({ id, ...s, lines, g, halo: reach + lane * 0.8 });
   }
 
-  const halo = el("circle", { id: "halo", "stroke-width": lane * 0.3 }, layers.overlay);
+  const halo = el(
+    "circle",
+    { id: "halo", "stroke-width": lane * 0.3 },
+    layers.overlay,
+  );
   return { stations, halo, lane };
 }
 
@@ -106,7 +196,9 @@ function interact({ stations, halo, lane }) {
     if (!active) return;
     const p = toScreen(active);
     const gap = active.halo * p.scale + 8;
-    const w = label.offsetWidth, h = label.offsetHeight, edge = 8;
+    const w = label.offsetWidth,
+      h = label.offsetHeight,
+      edge = 8;
     const x = Math.max(edge, Math.min(p.x - w / 2, innerWidth - w - edge));
     let y = p.y - gap - h;
     if (y < edge) y = p.y + gap; // no room above: drop below the station
@@ -150,12 +242,17 @@ function interact({ stations, halo, lane }) {
   // relying on the marker itself being hit.
   function nearest(e, reachPx) {
     const m = svg.getScreenCTM();
-    const x = (e.clientX - m.e) / m.a, y = (e.clientY - m.f) / m.d;
+    const x = (e.clientX - m.e) / m.a,
+      y = (e.clientY - m.f) / m.d;
     const reach = Math.max(reachPx / m.a, 0.45);
-    let best = null, bestD = Infinity;
+    let best = null,
+      bestD = Infinity;
     for (const s of stations) {
       const d = Math.hypot(s.x - x, s.y - y) - (s.halo - lane);
-      if (d < bestD) { best = s; bestD = d; }
+      if (d < bestD) {
+        best = s;
+        bestD = d;
+      }
     }
     return bestD <= reach ? best : null;
   }
@@ -163,18 +260,24 @@ function interact({ stations, halo, lane }) {
   addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse") return;
     const s = nearest(e, 12);
-    if (s) show(s); else hide();
+    if (s) show(s);
+    else hide();
   });
   addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse") return;
     const s = nearest(e, 24);
-    if (s) show(s); else hide();
+    if (s) show(s);
+    else hide();
   });
   document.documentElement.addEventListener("pointerleave", hide);
-  addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hide();
+  });
   for (const s of stations) {
     s.g.addEventListener("focus", () => show(s));
-    s.g.addEventListener("blur", () => { if (active === s) hide(); });
+    s.g.addEventListener("blur", () => {
+      if (active === s) hide();
+    });
   }
   addEventListener("resize", place);
 }
