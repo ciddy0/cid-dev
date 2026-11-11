@@ -301,10 +301,12 @@ button:focus-visible {
   font-weight: 600;
 }
 /* The settings: names down the left, each one's switch or stepper to its right, straight on
-   the map. */
+   the map. The two halves meet down the middle of the screen, so the controls stay put however
+   long the names are in each language. */
 .settings {
   display: grid;
-  grid-template-columns: auto auto;
+  width: min(100%, 24em);
+  grid-template-columns: 1fr 1fr;
   gap: 0.35em 0.7em;
   font-size: clamp(19px, 3.6vmin, 26px);
   letter-spacing: -0.01em;
