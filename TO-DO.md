@@ -6,7 +6,7 @@ schematic-map style (Beck, Vignelli, Mini Metro) — own palette, fonts, and art
 
 **Stack:** plain HTML + SVG + vanilla JS in `public/`, one Node script in `scripts/` that
 turns GTFS into a small JSON file. No framework, no build step for the site itself.
-Deploys with `npx wrangler deploy` like the gag page.
+Deploys with `npx wrangler deploy` like the gag page. See `README.md` for where things live.
 
 ---
 
@@ -43,7 +43,7 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
       North Hollywood top, Pomona/APU far right
 
 ## 5. Render (static first)
-- [x] `public/index.html` + `public/map.js` load `metro.json` and draw an SVG
+- [x] `public/index.html` + `public/js/` load `metro.json` and draw an SVG
 - [x] Lines: thick strokes, round caps/joins, line color
 - [x] Stations: white circles with colored outline; transfers as bigger white circles / pills
 - [x] Fit to viewport with padding, works on phone portrait and desktop landscape
@@ -81,9 +81,9 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [ ] Click a line → it highlights, others fade
 - [ ] Sound: soft chime when a train arrives (off by default)
 - [ ] Train crowding: G is still the busiest-looking line (cars cover ~51% of it). Try
-      `LANE = 0.15` in `scripts/schematize.mjs`, or shorter bus-sized cars for G
+      `LANE = 0.15` in `scripts/lib/schematize.mjs`, or shorter bus-sized cars for G
 - [ ] Lines get thin zoomed all the way out (~4.6px on desktop, less on a phone) — maybe a
       floor on line thickness, or a tighter zoom-out cap
 - [ ] On-screen zoom +/− buttons, for desktop visitors with no wheel or trackpad
-- [ ] Tune the view's opening crop (`LINE_VIEW` in `map.js`): on desktop the G Line sits right
+- [ ] Tune the view's opening crop (`LINE_VIEW` in `public/js/menu.js`): on desktop the G Line sits right
       on the top edge of the window

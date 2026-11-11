@@ -1,0 +1,15 @@
+{
+  "name": "cid-dev",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy",
+    "fetch": "node scripts/fetch-gtfs.mjs",
+    "build": "node scripts/build-map.mjs",
+    "test": "node --test"
+  }
+}

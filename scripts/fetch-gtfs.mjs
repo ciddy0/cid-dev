@@ -6,18 +6,18 @@ import { createWriteStream } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { RAW, RAW_BUS, SOURCE_STAMP } from "./lib/paths.mjs";
 
 const BASE = "https://gitlab.com/LACMTA/gtfs_rail/-/raw/master";
 const FILES = ["feed_info.txt", "routes.txt", "trips.txt", "stops.txt", "stop_times.txt", "shapes.txt"];
-const OUT = new URL("../data/raw/", import.meta.url);
 
-await mkdir(OUT, { recursive: true });
+await mkdir(RAW, { recursive: true });
 
 for (const name of FILES) {
   const res = await fetch(`${BASE}/${name}`);
   if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
   const text = await res.text();
-  await writeFile(new URL(name, OUT), text);
+  await writeFile(new URL(name, RAW), text);
   console.log(`${name.padEnd(16)} ${(text.length / 1024).toFixed(0).padStart(6)} KB`);
 }
 
@@ -25,10 +25,9 @@ for (const name of FILES) {
 // each table out of it with the system `unzip` and keep just the rows for these lines.
 const BUS_ZIP = "https://gitlab.com/LACMTA/gtfs_bus/-/raw/master/gtfs_bus.zip";
 const BUS_LINES = /Metro (G) Line/; // matched against route_long_name
-const BUS_OUT = new URL("bus/", OUT);
 
-await mkdir(BUS_OUT, { recursive: true });
-const zip = fileURLToPath(new URL("gtfs_bus.zip", BUS_OUT));
+await mkdir(RAW_BUS, { recursive: true });
+const zip = fileURLToPath(new URL("gtfs_bus.zip", RAW_BUS));
 const res = await fetch(BUS_ZIP);
 if (!res.ok) throw new Error(`gtfs_bus.zip: HTTP ${res.status}`);
 await writeFile(zip, Buffer.from(await res.arrayBuffer()));
@@ -37,7 +36,7 @@ await writeFile(zip, Buffer.from(await res.arrayBuffer()));
 // Splitting on commas is enough here: none of the columns we read sit after a quoted field.
 async function extract(name, keep, column) {
   const unzip = spawn("unzip", ["-p", zip, name], { stdio: ["ignore", "pipe", "inherit"] });
-  const out = createWriteStream(new URL(name, BUS_OUT));
+  const out = createWriteStream(new URL(name, RAW_BUS));
   const kept = new Set();
   let header, rows = 0;
   for await (const line of createInterface({ input: unzip.stdout })) {
@@ -65,4 +64,4 @@ const head = async (project) => {
   return { commit: c.id, committed_at: c.committed_date };
 };
 const stamp = { fetched_at: new Date().toISOString(), ...(await head("gtfs_rail")), bus: await head("gtfs_bus") };
-await writeFile(new URL("_source.json", OUT), JSON.stringify(stamp, null, 2) + "\n");
+await writeFile(SOURCE_STAMP, JSON.stringify(stamp, null, 2) + "\n");
