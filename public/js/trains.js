@@ -9,6 +9,8 @@ import { rail } from "./rail.js";
 import { drone } from "./sound.js";
 import { SEATS, runs, scheduled } from "./timetable.js";
 
+const CATCH_UP = 6; // seconds the last half hour is run through in as the view opens
+
 // Returns { show, run }: `show(states)` draws one answer from a feed, and `run(on)` starts or
 // stops the cars following the feeds. With motion off they are put where they are right now and
 // left standing, until the live feed next has news. `onArrive(line, id)` is called as a train of `line` pulls into station `id`.
@@ -66,10 +68,12 @@ export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = 
       if (!cars.has(state.id)) cars.set(state.id, car(hop));
       const it = cars.get(state.id);
       seat(it, state.load);
-      // Standing at one end of its hop or the other, where a moment ago it was moving.
+      // Standing at one end of its hop or the other, where a moment ago it was moving. Or
+      // already past the station it was headed for, having gone through between two looks.
       const at = state.progress >= 1 ? state.to : state.progress <= 0 ? state.from : null;
-      if (at && it.moving) onArrive(hop.line, at);
+      if (it.moving && (at || it.to === state.from)) onArrive(hop.line, at ?? state.from);
       it.moving = !at;
+      it.to = state.to;
       let d = state.progress * hop.legs.reduce((sum, [, a, b]) => sum + Math.abs(b - a), 0);
       const [track, a, b] =
         hop.legs.find(([, a, b], k) => {
@@ -102,10 +106,13 @@ export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = 
     const now = Date.now() / 1000,
       states = real.feed(now) ?? feed(now);
     show(states);
-    drone(states.filter((s) => s.progress % 1).length / states.length);
+    drone(states.filter((s) => s.progress % 1).length / (states.length || 1));
     frame = prefs.motion ? requestAnimationFrame(tick) : 0;
   };
-  const real = live(routes, () => running && !frame && tick());
+  const real = live(routes, {
+    onNews: () => running && !frame && tick(),
+    catchUp: () => (prefs.motion ? CATCH_UP : 0),
+  });
   function run(on) {
     running = on;
     cancelAnimationFrame(frame);

@@ -73,7 +73,8 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 ## 9. Live trains
 Diagram: `docs/live-trains-architecture.svg`. One Durable Object holds the only sockets to Metro
 (rail, and the G Line's buses) and fans out to every visitor, so Metro sees the same two
-connections however many people are watching.
+connections however many people are watching. Live trains run at real speed, so the view opens
+with a catch-up: the last 30 minutes in 6 s, easing out into now.
 - [x] Find a keyless feed: `wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions` streams GTFS-rt
       vehicle positions every 3s, no API key (optionally filter: `/ws/LACMTA_Rail/vehicle_positions/801,802`)
 - [ ] Note: the REST `trip_detail/route_code/{route}` endpoints returned `[]` while the socket
@@ -90,10 +91,21 @@ connections however many people are watching.
 - [x] Add the Durable Object binding + migration to `wrangler.jsonc`
 - [x] Page (`public/js/live.js`): open `/live`, ease cars toward each snapshot; fall back to
       `timetable.js` when the socket fails or a snapshot is older than 30s
-- [ ] Look at it in a browser, day and night: live trains run at real speed, 40× slower than the
-      timetable's, so the map is much stiller. Maybe a "live" mark, or a switch in settings
-- [ ] Deploy, then watch the Durable Object's usage: it stays awake for as long as anyone has
-      the map open
+- [x] The record: the hub stores a snapshot a minute (an alarm rings Metro up for ~8s when
+      nobody is watching) and serves the last half hour at `/live/history`
+- [x] Catch-up: `follower().replay()` in `public/js/live.js` runs the record through on
+      `cubic-bezier(0.33, 1, 0.68, 1)` each time the view opens, notes and all, then goes live
+- [x] Smooth hand-off from the catch-up to live: the first snapshot becomes the record's last
+      frame when it comes in time, else cars ease up to date over 12s; after that they glide at
+      the train's own speed (no lurch every snapshot), and finish their run before turning back
+- [ ] Look at it in a browser, day and night: tune `CATCH_UP` (`trains.js`) and `PAST`, `LAG`,
+      `GLIDE` (`live.js`); maybe a "live" mark
+- [ ] Catch-up over the last 60 minutes instead of 30: `PAST` in `public/js/live.js` and `KEEP`
+      in `worker/index.js` (a little over `PAST`, so ~65 min). Twice the record to download
+      (~40 KB gzipped) and twice as far for each train to race, so retune `CATCH_UP` and the
+      curve with it; a full replay then needs the hub to have been recording for an hour
+- [ ] Deploy, then watch the Durable Object's usage: awake while anyone has the map open, and
+      for ~8s of every minute otherwise, for ever
 - [ ] Check Metro's terms of use / rate limits; the API has `/login` + `/token`, so the socket may
       need auth one day — the fallback keeps the page working if it does
 
