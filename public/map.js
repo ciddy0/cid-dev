@@ -89,7 +89,7 @@ function draw(map) {
   const size = {
     line: lane, // lanes are one stroke apart, so shared track reads as touching ribbons
     dot: lane * 0.75,
-    edge: lane * 0.22,
+    edge: lane * 0.34,
     corner: 0.5, // bend radius, in schematic units
   };
   svg.setAttribute(
