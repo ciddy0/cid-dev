@@ -30,7 +30,7 @@ function draw(map) {
   const size = {
     line: lane, // lanes are one stroke apart, so shared track reads as touching ribbons
     dot: lane * 0.5, dotRing: lane * 0.28,
-    hub: lane * 0.95, pill: lane * 1.2, casing: lane * 0.4,
+    casing: lane * 0.4,
   };
   svg.setAttribute("viewBox",
     [b.minX - PAD, b.minY - PAD, b.maxX - b.minX + 2 * PAD, b.maxY - b.minY + 2 * PAD].join(" "));
@@ -65,15 +65,14 @@ function draw(map) {
       "aria-label": `${s.name}, ${names} ${lines.length > 1 ? "lines" : "line"}`,
     }, layers.stations);
     let reach; // how far the marker extends from its centre
-    if (s.marker) {
-      const d = toD(s.marker);
-      el("path", { class: "casing", d, "stroke-width": size.pill + 2 * size.casing }, g);
-      el("path", { class: "pill", d, "stroke-width": size.pill }, g);
-      reach = Math.max(...s.marker.map(([x, y]) => Math.hypot(x - s.x, y - s.y))) + size.pill / 2;
-    } else if (s.transfer) {
-      el("circle", { class: "casing", cx: s.x, cy: s.y, r: size.hub + size.casing }, g);
-      el("circle", { cx: s.x, cy: s.y, r: size.hub }, g);
-      reach = size.hub;
+    if (s.transfer) {
+      // Same shape as every other station, just bigger: wide enough to sit over all its lanes,
+      // and a little bigger again for each extra line.
+      const span = Math.max(0, ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)));
+      const r = Math.max(span + lane * 0.7, lane * (0.9 + 0.15 * lines.length));
+      el("circle", { class: "casing", cx: s.x, cy: s.y, r: r + size.casing }, g);
+      el("circle", { cx: s.x, cy: s.y, r }, g);
+      reach = r;
     } else {
       const dot = el("circle", {
         cx: s.x, cy: s.y, r: size.dot + size.dotRing / 2, "stroke-width": size.dotRing,
