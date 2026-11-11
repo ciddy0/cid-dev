@@ -1,6 +1,8 @@
-// The trains: a feed (see timetable.js) says where every train is, and this puts a car there.
+// The trains: a feed says where every train is, and this puts a car there. The feed is the live
+// one (live.js) while it has word from Metro, and the timetable (timetable.js) otherwise.
 import { el } from "./dom.js";
 import { round } from "./math.js";
+import { live } from "./live.js";
 import { lineColor } from "./network.js";
 import { prefs } from "./prefs.js";
 import { rail } from "./rail.js";
@@ -8,8 +10,8 @@ import { drone } from "./sound.js";
 import { SEATS, runs, scheduled } from "./timetable.js";
 
 // Returns { show, run }: `show(states)` draws one answer from a feed, and `run(on)` starts or
-// stops the cars following the timetable. With motion off they are put where they are right now
-// and left standing. `onArrive(line, id)` is called as a train of `line` pulls into station `id`.
+// stops the cars following the feeds. With motion off they are put where they are right now and
+// left standing, until the live feed next has news. `onArrive(line, id)` is called as a train of `line` pulls into station `id`.
 export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = {}) {
   const long = lane * 3.2,
     wide = lane * 1.9;
@@ -94,16 +96,21 @@ export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = 
   }
 
   const feed = scheduled(routes);
-  let frame = 0;
+  let frame = 0,
+    running = false;
   const tick = () => {
-    const states = feed(Date.now() / 1000);
+    const now = Date.now() / 1000,
+      states = real.feed(now) ?? feed(now);
     show(states);
     drone(states.filter((s) => s.progress % 1).length / states.length);
     frame = prefs.motion ? requestAnimationFrame(tick) : 0;
   };
+  const real = live(routes, () => running && !frame && tick());
   function run(on) {
+    running = on;
     cancelAnimationFrame(frame);
     frame = on ? requestAnimationFrame(tick) : 0;
+    real.watch(on);
     if (!on) drone(null);
   }
   return { show, run };

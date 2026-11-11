@@ -1,26 +1,28 @@
 # cid.dev
 
-A schematic, animated map of the LA Metro rail network, with a menu flown around on top of it.
-Plain HTML, CSS and ES modules: the site has no dependencies and no build step. What's planned
-is in [TO-DO.md](TO-DO.md).
+A schematic, animated map of the LA Metro rail network, with a menu flown around on top of it,
+its trains where LA Metro says they are right now. Plain HTML, CSS and ES modules, and a small
+Worker for the live trains: the site has no dependencies and no build step. What's planned is in
+[TO-DO.md](TO-DO.md).
 
 ## Commands
 
 | | |
 | --- | --- |
-| `npm run dev` | serve `public/` locally (wrangler) |
+| `npm run dev` | serve `public/` and the Worker locally (wrangler); the live trains are real |
 | `npm test` | unit tests (`node --test`, nothing to install) |
 | `npm run fetch` | download the GTFS feeds into `data/raw/` (not committed) |
 | `npm run build` | `data/raw/` + `data/overrides.json` → `public/data/metro.json` |
-| `npm run deploy` | publish `public/` to cid.dev |
+| `npm run deploy` | publish `public/` and the Worker to cid.dev |
 
-Needs Node 22 or newer. The page itself only needs `public/` served by anything static.
+Needs Node 22 or newer. The page itself only needs `public/` served by anything static: without
+the Worker its trains follow the timetable.
 
 ## How it fits together
 
 ```
 GTFS feeds ──fetch──▶ data/raw/ ──build──▶ public/data/metro.json ──▶ the page
-                        data/overrides.json ──┘
+                        data/overrides.json ──┘                    └──▶ the Worker ──/live──▶ the page
 ```
 
 **The data pipeline** (`scripts/`) runs by hand, when the feed or the layout changes, and its
@@ -47,14 +49,25 @@ them up in this order:
 | `camera.js` | the viewBox: drag, pinch, wheel, glides |
 | `label.js` | the station name label and halo |
 | `trains.js` | puts a car wherever a feed says a train is, riding the tracks (`rail.js`) |
-| `timetable.js` | the feed: where every train is, worked out from the timetable |
+| `live.js` | the live feed: the socket to `/live`, cars eased from one snapshot to the next |
+| `timetable.js` | the fallback feed: where every train is, worked out from the timetable |
 | `menu.js` | the menu and the screens it flies to; starts and stops the trains |
 | `settings.js`, `prefs.js` | the motion and sound switches, stored in `localStorage` |
 | `sound.js` | the synthesized piano: a note as a train arrives on screen, menu figures, the hum |
 | `geometry.js`, `math.js`, `dom.js` | bends and arcs, small numeric helpers, the SVG element helper |
 
-`geometry.js`, `termini.js`, `timetable.js` and `math.js` never touch the page, which is what
-lets `test/` run them under Node. Keep them that way.
+`geometry.js`, `termini.js`, `timetable.js`, `math.js` and `follower()` in `live.js` never touch
+the page, which is what lets `test/` run them under Node. Keep them that way.
+
+**The Worker** (`worker/`) serves `public/` and the live trains
+([diagram](docs/live-trains-architecture.svg)).
+
+| | |
+| --- | --- |
+| `index.js` | the `/live` websocket, and the hub: one Durable Object that listens to LA Metro's vehicle positions while anyone is watching and sends every visitor a snapshot each few seconds |
+| `adapt.js` | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json` |
+
+The page shows the timetable until the first snapshot comes, and again whenever they stop.
 
 ## Common changes
 
@@ -63,6 +76,4 @@ lets `test/` run them under Node. Keep them that way.
 - **A new setting**: a default in `js/prefs.js` and a `data-pref` switch in `index.html`.
 - **A line's colour**: `--line-<id>` in `styles.css` (falls back to the feed's colour).
 - **A station in the wrong place**: `pins` / `nudges` in `data/overrides.json`, then `npm run build`.
-- **Live trains**: another feed returning what `scheduled()` in `js/timetable.js` returns, handed
-  to `show()` in `js/trains.js`.
 - **Sizes and timings** are named constants at the top of the module that uses them.

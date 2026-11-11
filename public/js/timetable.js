@@ -1,7 +1,7 @@
 // Where the trains are. A feed is a function from the time (in seconds) to a list of
 // { id, line, from, to, progress, load }: a train of `line` between two neighbouring stations,
 // `progress` (0 → 1) of the way along, carrying `load`, up to SEATS passengers, each a shape
-// from SHAPES. For now that comes from the timetable; a live feed only has to return the same
+// from SHAPES. This one comes from the timetable; the live one in live.js returns the same
 // thing.
 import { clamp, easeInOutQuad } from "./math.js";
 
@@ -59,19 +59,21 @@ export function runs(line, tracks, rails) {
   );
 }
 
+// The passengers of train number `train` after `stop` stops. They are made up: each seat's rider
+// stays on for a few stops, then leaves it to another or to nobody.
+const dice = (...seed) =>
+  seed.reduce((h, v) => Math.imul(h ^ v, 0x9e3779b1) ^ (h >>> 15), 0x2545f491) >>> 8;
+export const riders = (train, stop) =>
+  Array.from({ length: SEATS }, (_, seat) => {
+    const roll = dice(train, seat, Math.floor((stop + seat * 2) / (3 + seat)));
+    return roll % 5 < 3 ? [SHAPES[(roll >> 4) % SHAPES.length]] : [];
+  }).flat();
+
 // The timetable as a feed, for `routes` of { line, runs }. Every train shuttles end to end and
 // back for ever, enough of them a line to keep its daytime frequency, evenly spaced. Between two
-// stations a train stands for DWELL, then eases out and into the next one. Its passengers are
-// made up: each seat's rider stays on for a few stops, then leaves it to another or to nobody.
-// Worked out from the clock alone, so there is nothing to keep in step.
+// stations a train stands for DWELL, then eases out and into the next one. Worked out from the
+// clock alone, so there is nothing to keep in step.
 export function scheduled(routes) {
-  const dice = (...seed) =>
-    seed.reduce((h, v) => Math.imul(h ^ v, 0x9e3779b1) ^ (h >>> 15), 0x2545f491) >>> 8;
-  const riders = (train, stop) =>
-    Array.from({ length: SEATS }, (_, seat) => {
-      const roll = dice(train, seat, Math.floor((stop + seat * 2) / (3 + seat)));
-      return roll % 5 < 3 ? [SHAPES[(roll >> 4) % SHAPES.length]] : [];
-    }).flat();
   return (now) =>
     routes.flatMap(({ line, runs }, r) => {
       const lap = runs[0].at(-1).arr + TURN,

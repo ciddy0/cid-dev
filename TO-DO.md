@@ -70,11 +70,36 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [ ] `npx wrangler deploy`
 - [ ] Check cid.dev on desktop + phone, check cid.dev/meow still works
 
+## 9. Live trains
+Diagram: `docs/live-trains-architecture.svg`. One Durable Object holds the only sockets to Metro
+(rail, and the G Line's buses) and fans out to every visitor, so Metro sees the same two
+connections however many people are watching.
+- [x] Find a keyless feed: `wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions` streams GTFS-rt
+      vehicle positions every 3s, no API key (optionally filter: `/ws/LACMTA_Rail/vehicle_positions/801,802`)
+- [ ] Note: the REST `trip_detail/route_code/{route}` endpoints returned `[]` while the socket
+      had trains — retest in the daytime before relying on them
+- [x] Prototype: connect straight to Metro's socket, look at what comes in per line (from Node:
+      a message per vehicle, parked ones with no `trip`; G is `/ws/LACMTA/vehicle_positions/901`)
+- [x] Adapter (`worker/adapt.js`): Metro's `route_code` / `directionId` / `stopId` /
+      `currentStatus` / position → the states `show(states)` takes (line, from station, to
+      station, progress), using `metro.json`, which now has each line's `route` and `platforms`
+- [x] Durable Object hub (`worker/index.js`): keeps the latest state per train, broadcasts a
+      snapshot to all browsers every 5s
+- [x] Close the upstream sockets when the last viewer leaves; reopen on the next one
+- [x] Worker route `/live` that upgrades to a websocket and forwards to the hub
+- [x] Add the Durable Object binding + migration to `wrangler.jsonc`
+- [x] Page (`public/js/live.js`): open `/live`, ease cars toward each snapshot; fall back to
+      `timetable.js` when the socket fails or a snapshot is older than 30s
+- [ ] Look at it in a browser, day and night: live trains run at real speed, 40× slower than the
+      timetable's, so the map is much stiller. Maybe a "live" mark, or a switch in settings
+- [ ] Deploy, then watch the Durable Object's usage: it stays awake for as long as anyone has
+      the map open
+- [ ] Check Metro's terms of use / rate limits; the API has `/login` + `/token`, so the socket may
+      need auth one day — the fallback keeps the page working if it does
+
 ---
 
 ## Later / maybe
-- [ ] Live trains — LA Metro's real-time feed needs an API key; check whether there's a public
-      feed that doesn't, otherwise skip. A Worker would proxy + cache it
 - [x] G busway line, drawn as a full line like on Metro's own map
 - [ ] J busway line
 - [ ] Future extensions as faint dotted lines ("coming soon")

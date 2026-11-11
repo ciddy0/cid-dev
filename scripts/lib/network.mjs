@@ -45,7 +45,9 @@ function timesByTrip(stopTimes) {
 
 // Some transfers are two GTFS stations side by side (e.g. "Expo / Crenshaw E-Line" and
 // "Expo / Crenshaw K-Line"). Merge stations with the same base name within MERGE_WITHIN_KM.
+// Returns which station each one that went was merged into.
 function mergeTwins(lines, stations) {
+  const merged = new Map();
   const baseName = (n) => n.replace(/ [A-Z]-Line$/, "");
   const ids = Object.keys(stations);
   for (const a of ids) {
@@ -58,6 +60,7 @@ function mergeTwins(lines, stations) {
       sa.y = round((sa.y + sb.y) / 2);
       sa.lines = [...new Set([...sa.lines, ...sb.lines])];
       delete stations[b];
+      merged.set(b, a);
       const swap = (list) => list.map((s) => (s === b ? a : s));
       for (const l of lines) {
         l.stations = swap(l.stations);
@@ -65,13 +68,17 @@ function mergeTwins(lines, stations) {
       }
     }
   }
+  return merged;
 }
 
 // `tables` are the parsed GTFS files: { routes, trips, stops, stopTimes }. Returns
-//   lines       [{ id, name, color, textColor, stations, times, extraPaths, trainsPerHour }],
-//               `stations` being station ids end to end, `times` the seconds from the first to
-//               each, and `extraPaths` runs of station ids only served in the other direction
+//   lines       [{ id, route, name, color, textColor, stations, times, extraPaths, trainsPerHour }],
+//               `route` being the route code the agency's feeds know the line by, `stations`
+//               station ids end to end (the way direction 0 runs), `times` the seconds from the
+//               first to each, and `extraPaths` runs of station ids only served in the other
+//               direction
 //   stations    id → { name, x, y, lines, transfer }, x and y in km
+//   platforms   stop id → station id, for every stop that isn't a station under its own id
 //   projection  { lat0, lon0 }, the centre x and y are measured from
 export function buildNetwork({ routes, trips, stops, stopTimes }) {
   const stopById = new Map(stops.map((s) => [s.stop_id, s]));
@@ -136,6 +143,7 @@ export function buildNetwork({ routes, trips, stops, stopTimes }) {
 
     lines.push({
       id,
+      route: route.route_id.split("-")[0],
       name: route.route_long_name.replace(/^Metro (\w Line).*/, "$1"),
       color: `#${route.route_color}`,
       textColor: `#${route.route_text_color}`,
@@ -147,11 +155,18 @@ export function buildNetwork({ routes, trips, stops, stopTimes }) {
   }
 
   lines.sort((a, b) => a.id.localeCompare(b.id));
-  mergeTwins(lines, stations);
+  const merged = mergeTwins(lines, stations);
   for (const s of Object.values(stations)) {
     s.lines.sort();
     s.transfer = s.lines.length > 1;
   }
 
-  return { lines, stations, projection: { lat0, lon0 } };
+  const platforms = {};
+  for (const s of stops) {
+    let sid = stationOf(s.stop_id);
+    while (merged.has(sid)) sid = merged.get(sid);
+    if (sid !== s.stop_id && stations[sid] && !(+s.location_type > 1)) platforms[s.stop_id] = sid;
+  }
+
+  return { lines, stations, platforms, projection: { lat0, lon0 } };
 }

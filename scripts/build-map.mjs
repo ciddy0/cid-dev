@@ -20,7 +20,7 @@ const json = async (url) => JSON.parse(await readFile(url, "utf8").catch(() => "
 const [routes, trips, stops, stopTimes] = await Promise.all(
   ["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"].map(table),
 );
-const { lines, stations, projection } = buildNetwork({ routes, trips, stops, stopTimes });
+const { lines, stations, platforms, projection } = buildNetwork({ routes, trips, stops, stopTimes });
 const schematic = schematize(lines, stations, await json(OVERRIDES));
 
 const deg = (n) => Math.round(n * 1e6) / 1e6;
@@ -30,6 +30,7 @@ const out = {
   layout: schematic.layout,
   lines: schematic.lines,
   stations: schematic.stations,
+  platforms,
 };
 const text = JSON.stringify(out);
 await mkdir(new URL(".", MAP_JSON), { recursive: true });

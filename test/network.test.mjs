@@ -39,8 +39,9 @@ const tables = {
 };
 
 test("builds lines and stations out of GTFS tables", () => {
-  const { lines, stations, projection } = buildNetwork(structuredClone(tables));
+  const { lines, stations, platforms, projection } = buildNetwork(structuredClone(tables));
   const [a, e] = lines;
+  assert.deepEqual([a.route, e.route], ["801", "804"]);
   assert.deepEqual([a.id, a.name, a.color, a.textColor], ["A", "A Line", "#0072BC", "#FFFFFF"]);
   assert.deepEqual(a.stations, ["S1", "S2", "S3"]); // platforms folded into their stations
   assert.deepEqual(a.times, [0, 180, 420]);
@@ -50,6 +51,10 @@ test("builds lines and stations out of GTFS tables", () => {
   // S3 and S3e are one station under two names
   assert.deepEqual(e.stations, ["S3", "S4"]);
   assert.equal(stations.S3e, undefined);
+  assert.deepEqual(
+    platforms,
+    { S1a: "S1", S1b: "S1", S2a: "S2", S2xa: "S2x", S3a: "S3", S3e: "S3", S3ea: "S3", S4a: "S4" },
+  );
   assert.deepEqual(stations.S3, { name: "Third", x: 0.62, y: -1.5, lines: ["A", "E"], transfer: true });
   assert.deepEqual([stations.S1.name, stations.S1.transfer], ["First", false]);
   assert.ok(stations.S1.y > stations.S2.y); // y points south
