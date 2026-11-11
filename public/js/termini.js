@@ -8,10 +8,11 @@ import { round } from "./math.js";
 
 const TURNS = [0, 1, -1, 2, -2, 3, -3]; // headings to try, in 45° steps off straight on
 
-// The T for every end of every line's main track, as { line, d, corners, trim }: the path data
-// to stroke, the outer corners of its crossbar and, where the stem turns, the `trim` its track
-// needs: the line itself stops at `from`, in place of track.pts[at], where the stem's arc takes
-// over (or its square end would stick out of the curve).
+// The T for every end of every line's main track, as { line, track, at, d, corners, trim }: the
+// track it caps and the index in track.pts of the end it is at, the path data to stroke, the
+// outer corners of its crossbar and, where the stem turns, the `trim` its track needs: the line
+// itself stops at `from`, in place of track.pts[at], where the stem's arc takes over (or its
+// square end would stick out of the curve).
 export function termini(tracks, lane) {
   const stem = lane * 2.2,
     bar = lane * 1.4,
@@ -91,6 +92,8 @@ export function termini(tracks, lane) {
     placed.push(...t.segs);
     return {
       line: e.line,
+      track: e.track,
+      at: e.at,
       d: t.d,
       corners: t.corners,
       trim: t.from && { track: e.track, at: e.at, from: t.from },

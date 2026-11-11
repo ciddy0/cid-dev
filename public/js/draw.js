@@ -66,11 +66,9 @@ function drawLines(tracks, size, layer, ink) {
 
 function drawTermini(tracks, size, layer, ink) {
   const trimmed = new Map(); // track → its points, cut back where a turning stem takes over
-  for (const { line, d, corners, trim } of termini(tracks, size.line)) {
-    if (trim) {
-      const { track, at, from } = trim;
-      trimmed.set(track, (trimmed.get(track) ?? track.pts).with(at, from));
-    }
+  for (const { line, track, at, d, corners, trim } of termini(tracks, size.line)) {
+    if (trim)
+      trimmed.set(track, (trimmed.get(track) ?? track.pts).with(trim.at, trim.from));
     for (const [x, y] of corners) ink.cover(x, y);
     const path = el(
       "path",
@@ -78,6 +76,7 @@ function drawTermini(tracks, size, layer, ink) {
       layer,
     );
     path.style.stroke = lineColor(line);
+    (track.caps ??= []).push({ path, last: at > 0 });
   }
   for (const [track, pts] of trimmed) track.path.setAttribute("d", toD(pts, track.radii));
 }
@@ -128,7 +127,8 @@ function drawStations(map, tracks, size, layer, ink) {
 }
 
 // Draws `map` and returns what the rest of the page works with:
-//   tracks    every polyline drawn, as { line, part, extra, pts, radii, path }
+//   tracks    every polyline drawn, as { line, part, extra, pts, radii, path, caps }: `caps`
+//             the Ts at its ends, each { path, last } (`last` at the end its path runs to)
 //   stations  in tab order, each with its lines, its <g> and its halo radius
 //   layers    the <g> for each of LAYERS
 //   halo      the ring shown round the picked station

@@ -64,6 +64,11 @@ main {
   stroke-linecap: butt;
   stroke-linejoin: round;
 }
+/* A terminus pops in about its own middle (intro.js). */
+.terminus {
+  transform-box: fill-box;
+  transform-origin: center;
+}
 /* Stations and trains only show on the view screen: behind the menu the map is just its
    lines. */
 #stations,

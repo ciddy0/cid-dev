@@ -3,6 +3,7 @@
 // the back arrow there points the way home. Only "view" shows the stations and hands the map
 // over to the visitor.
 import { svg } from "./dom.js";
+import { drawIn } from "./intro.js";
 import { prefs } from "./prefs.js";
 import { chime } from "./sound.js";
 
@@ -19,7 +20,6 @@ const LINE_VIEW = 8;
 const GLIDE_MS = 900; // the camera's trip between the menu and a screen
 const SWELL_MS = 220; // the picked item swells for this long before the camera leaves
 const INTRO_MS = 1400; // the opening move from the whole map in to the menu
-const INTRO_HOLD_MS = 700; // and how long the whole map shows before it
 
 const CHIME_GO = [65, 72]; // MIDI notes: F4 up to C5
 const CHIME_HOME = [72, 65];
@@ -158,7 +158,7 @@ export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } =
     if (e.key === "Escape") home();
   });
 
-  // Open on the whole map for a moment, then close in on the hub as the menu fades up.
+  // Open on the whole map as its lines draw in, then close in on the hub as the menu fades up.
   main.inert = true;
   const ready = () => {
     busy = false;
@@ -172,6 +172,6 @@ export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } =
   nav.style.opacity = 0;
   setTimeout(
     () => cam.glide(spot(), INTRO_MS, (e) => (nav.style.opacity = e), ready),
-    INTRO_HOLD_MS,
+    drawIn(tracks),
   );
 }

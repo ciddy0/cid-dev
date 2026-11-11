@@ -52,7 +52,9 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
       readable size and zooms out as far as the whole map
 
 ## 6. Animate
-- [ ] Intro: lines draw in one at a time (`stroke-dashoffset`), stations pop in after
+- [x] Intro: lines draw in one after another (`stroke-dashoffset`, `public/js/intro.js`), each
+      T popping in as its line reaches it. Stations stay hidden until the view screen
+- [ ] Stations pop in as the view screen opens
 - [x] Trains: small rounded rectangles moving along each line's path
 - [x] Trains ease into stations, pause briefly, ease out; reverse at terminals
 - [x] Rough frequency from GTFS (trains per line ~ headway), but simulated — not real-time
