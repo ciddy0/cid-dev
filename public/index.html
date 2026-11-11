@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>cid.dev</title>
+<style>
+  /* Palette lives here so it can be swapped wholesale (day/night comes later). */
+  :root {
+    color-scheme: dark;
+    --bg: #0c0e12;
+    --dot: #f7f5ef;
+    --halo: rgba(247, 245, 239, 0.55);
+    --line-a: #2d8ff2;
+    --line-b: #f2463f;
+    --line-c: #5fc24c;
+    --line-d: #b277d8;
+    --line-e: #ffc12e;
+    --line-k: #f57fc3;
+    --label-bg: #1b1e25;
+    --label-edge: rgba(247, 245, 239, 0.14);
+    --label-ink: #f7f5ef;
+    --muted: #6d7380;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--label-ink);
+    font-family: var(--font);
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  main {
+    position: fixed;
+    inset: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  #map { display: block; width: 100%; height: 100%; }
+  #map.hot { cursor: pointer; }
+
+  .line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .station { outline: none; }
+  .station circle { fill: var(--dot); }
+  .station .casing { fill: none; stroke: var(--bg); stroke-linecap: round; }
+  .station .pill { fill: none; stroke: var(--dot); stroke-linecap: round; }
+  .station circle.casing { fill: var(--bg); stroke: none; }
+  #halo { fill: none; stroke: var(--halo); opacity: 0; transition: opacity 0.12s; pointer-events: none; }
+  #halo.on { opacity: 1; }
+
+  #label {
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100vw - 16px);
+    padding: 7px 11px 7px 8px;
+    border-radius: 999px;
+    background: var(--label-bg);
+    box-shadow: 0 0 0 1px var(--label-edge), 0 6px 20px rgba(0, 0, 0, 0.45);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 18px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  #label.on { opacity: 1; }
+  #label .chips { display: flex; gap: 3px; }
+  #label .chip {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+  }
+  #label .name { overflow: hidden; text-overflow: ellipsis; }
+
+  #status, .status {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+  }
+  #status[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <svg id="map" role="group" aria-label="Schematic map of the LA Metro rail network"></svg>
+</main>
+<div id="label" role="status"></div>
+<p id="status" hidden></p>
+<noscript><p class="status">The map needs JavaScript to draw.</p></noscript>
+<script type="module" src="map.js"></script>
+</body>
+</html>

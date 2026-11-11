@@ -43,11 +43,11 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
       North Hollywood top, Pomona/APU far right
 
 ## 5. Render (static first)
-- [ ] `public/index.html` + `public/map.js` load `metro.json` and draw an SVG
-- [ ] Lines: thick strokes, round caps/joins, line color
-- [ ] Stations: white circles with colored outline; transfers as bigger white circles / pills
-- [ ] Fit to viewport with padding, works on phone portrait and desktop landscape
-- [ ] Hover/tap a station → name label (no permanent label clutter)
+- [x] `public/index.html` + `public/map.js` load `metro.json` and draw an SVG
+- [x] Lines: thick strokes, round caps/joins, line color
+- [x] Stations: white circles with colored outline; transfers as bigger white circles / pills
+- [x] Fit to viewport with padding, works on phone portrait and desktop landscape
+- [x] Hover/tap a station → name label (no permanent label clutter)
 
 ## 6. Animate
 - [ ] Intro: lines draw in one at a time (`stroke-dashoffset`), stations pop in after
