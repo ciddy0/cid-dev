@@ -16,7 +16,23 @@ function el(name, attrs = {}, parent) {
 }
 
 const lineColor = (line) => `var(--line-${line.id.toLowerCase()}, ${line.color})`;
-const toD = (pts) => "M" + pts.map(([x, y]) => `${x} ${y}`).join("L");
+
+// Polyline → path data with each bend rounded off. The curve starts and ends `r` from the
+// corner, or halfway along a leg that is shorter than that.
+function toD(pts, r = 0) {
+  const n = (v) => +v.toFixed(3);
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [x, y] = pts[i], next = pts[i + 1];
+    if (!next || !r) { d += `L${x} ${y}`; continue; }
+    const [px, py] = pts[i - 1], [nx, ny] = next;
+    const inLen = Math.hypot(x - px, y - py), outLen = Math.hypot(nx - x, ny - y);
+    const cut = Math.min(r, inLen / 2, outLen / 2);
+    d += `L${n(x - ((x - px) / inLen) * cut)} ${n(y - ((y - py) / inLen) * cut)}`
+      + `Q${x} ${y} ${n(x + ((nx - x) / outLen) * cut)} ${n(y + ((ny - y) / outLen) * cut)}`;
+  }
+  return d;
+}
 
 async function loadMap() {
   const res = await fetch("data/metro.json");
@@ -29,8 +45,8 @@ function draw(map) {
   const { lane, bounds: b } = map.layout;
   const size = {
     line: lane, // lanes are one stroke apart, so shared track reads as touching ribbons
-    dot: lane * 0.5, dotRing: lane * 0.28,
-    casing: lane * 0.4,
+    dot: lane, edge: lane * 0.3,
+    corner: 0.5, // bend radius, in schematic units
   };
   svg.setAttribute("viewBox",
     [b.minX - PAD, b.minY - PAD, b.maxX - b.minX + 2 * PAD, b.maxY - b.minY + 2 * PAD].join(" "));
@@ -44,7 +60,7 @@ function draw(map) {
   for (const line of map.lines) {
     for (const [i, part] of [line, ...(line.extraPaths ?? [])].entries()) {
       const path = el("path", {
-        class: "line", d: toD(part.path), "stroke-width": size.line,
+        class: "line", d: toD(part.path, size.corner), "stroke-width": size.line,
         "data-line": line.id, ...(i && { "data-extra": i }),
       }, layers.lines);
       path.style.stroke = lineColor(line);
@@ -64,23 +80,13 @@ function draw(map) {
       class: s.transfer ? "station transfer" : "station", tabindex: 0, role: "img",
       "aria-label": `${s.name}, ${names} ${lines.length > 1 ? "lines" : "line"}`,
     }, layers.stations);
-    let reach; // how far the marker extends from its centre
-    if (s.transfer) {
-      // Same shape as every other station, just bigger: wide enough to sit over all its lanes,
-      // and a little bigger again for each extra line.
-      const span = Math.max(0, ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)));
-      const r = Math.max(span + lane * 0.7, lane * (0.9 + 0.15 * lines.length));
-      el("circle", { class: "casing", cx: s.x, cy: s.y, r: r + size.casing }, g);
-      el("circle", { cx: s.x, cy: s.y, r }, g);
-      reach = r;
-    } else {
-      const dot = el("circle", {
-        cx: s.x, cy: s.y, r: size.dot + size.dotRing / 2, "stroke-width": size.dotRing,
-      }, g);
-      dot.style.stroke = lineColor(lines[0]);
-      reach = size.dot + size.dotRing;
-    }
-    stations.push({ id, ...s, lines, g, halo: reach + lane * 0.9 });
+    // Every station is the same white disc with a dark edge, twice as wide as a line.
+    // One that has to sit over more lanes than that grows just enough to cover them.
+    const span = Math.max(0, ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)));
+    const r = Math.max(size.dot, span + lane * 0.75);
+    el("circle", { cx: s.x, cy: s.y, r, "stroke-width": size.edge }, g);
+    const reach = r + size.edge / 2;
+    stations.push({ id, ...s, lines, g, halo: reach + lane * 0.8 });
   }
 
   const halo = el("circle", { id: "halo", "stroke-width": lane * 0.3 }, layers.overlay);
@@ -88,7 +94,7 @@ function draw(map) {
 }
 
 // --- label: one floating chip row + name, shared by hover, tap and keyboard focus
-function interact({ stations, halo }) {
+function interact({ stations, halo, lane }) {
   let active = null;
 
   const toScreen = (s) => {
@@ -148,7 +154,7 @@ function interact({ stations, halo }) {
     const reach = Math.max(reachPx / m.a, 0.45);
     let best = null, bestD = Infinity;
     for (const s of stations) {
-      const d = Math.hypot(s.x - x, s.y - y) - (s.halo - 0.27);
+      const d = Math.hypot(s.x - x, s.y - y) - (s.halo - lane);
       if (d < bestD) { best = s; bestD = d; }
     }
     return bestD <= reach ? best : null;

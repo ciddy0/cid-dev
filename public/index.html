@@ -10,6 +10,7 @@
     color-scheme: dark;
     --bg: #0c0e12;
     --dot: #f7f5ef;
+    --dot-edge: #0c0e12;
     --halo: rgba(247, 245, 239, 0.55);
     --line-a: #2d8ff2;
     --line-b: #f2463f;
@@ -42,8 +43,7 @@
 
   .line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .station { outline: none; }
-  .station circle { fill: var(--dot); }
-  .station circle.casing { fill: var(--bg); stroke: none; }
+  .station circle { fill: var(--dot); stroke: var(--dot-edge); }
   #halo { fill: none; stroke: var(--halo); opacity: 0; transition: opacity 0.12s; pointer-events: none; }
   #halo.on { opacity: 1; }
 
