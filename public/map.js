@@ -1,12 +1,17 @@
 // Draws the schematic LA Metro map from data/metro.json as an SVG, plus the station name
 // label on hover / tap / focus, a drag / pinch / wheel camera and the menu that flies it from
-// screen to screen. Static for now: each line is one <path> (so it can be drawn in
-// and ridden with getPointAtLength later, its terminus Ts drawn separately on top) and
-// trains get their own empty layer.
+// screen to screen, and the trains running along the lines to their timetable. Each line is one
+// <path> (so it can be drawn in later, its terminus Ts drawn separately on top) and the trains
+// get their own layer.
 const NS = "http://www.w3.org/2000/svg";
 const PAD = 0.7; // schematic units of clear space around everything drawn
-const MAX_ZOOM = 64; // px per schematic unit
-const MENU_ZOOM = 45; // px per schematic unit behind the menu, where lines are fat backdrop
+// How thick a line is drawn, in px: as close as the view zooms in, behind the menu where lines
+// are fat backdrop, and where the view opens. Stations sit too far apart for the whole map to
+// be on screen at that last one, so the view opens on the hub and is panned, or zoomed out as
+// far as the whole map.
+const LINE_MAX = 19;
+const LINE_MENU = 13.5;
+const LINE_VIEW = 8;
 
 const svg = document.getElementById("map");
 const label = document.getElementById("label");
@@ -217,7 +222,7 @@ function draw(map) {
   };
 
   const layers = Object.fromEntries(
-    ["lines", "stations", "trains", "overlay"].map((id) => [
+    ["lines", "trains", "stations", "overlay"].map((id) => [
       id,
       el("g", { id }, svg),
     ]),
@@ -415,28 +420,265 @@ function draw(map) {
     { id: "halo", "stroke-width": lane * 0.3 },
     layers.overlay,
   );
-  return { stations, tracks, halo, lane, box, hub };
+  return { stations, tracks, layers, halo, lane, box, hub };
+}
+
+// --- trains: a feed says where every train is, and the layer puts a car there. The feed is a
+// function from the time to a list of { id, line, from, to, progress, load }: a train of `line`
+// between two neighbouring stations, `progress` (0 → 1) of the way along, carrying `load`, up to
+// SEATS passengers, each a shape from SHAPES. For now that comes from the timetable; a live feed
+// only has to return the same thing.
+const SPEED = 40; // timetable seconds per real second
+const DWELL = 20; // timetable seconds a train stands at each station
+const TURN = 180; // and at the end of the line before heading back
+const SEATS = 6; // passengers a car holds, two abreast
+const SHAPES = ["circle", "triangle", "square"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+
+// A track to ride. `at(s)` is the point `s` along its rounded path, `len(d)` turns a distance
+// along the unrounded polyline (what metro.json's `at` measures) into such an `s`, and
+// `near(p)` is the `s` of the point closest to p.
+function rail({ pts, radii }, parent) {
+  const path = el("path", { d: toD(pts, radii) }, parent); // measured, never painted
+  const total = path.getTotalLength(),
+    n = Math.ceil(total / 0.05);
+  const xy = Array.from({ length: n + 1 }, (_, i) => {
+    const p = path.getPointAtLength((i / n) * total);
+    return [p.x, p.y];
+  });
+  path.remove();
+
+  let run = 0;
+  const bends = pts.flatMap((p, i) => {
+    if (i) run += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]);
+    const b = radii[i] && bendAt(pts, i);
+    return b ? [{ d: run, cut: radii[i] * Math.tan(b.half), arc: radii[i] * b.half }] : [];
+  });
+  return {
+    total,
+    at(s) {
+      const f = clamp(s / total, 0, 1) * n,
+        i = Math.min(n - 1, Math.floor(f));
+      return [0, 1].map((k) => xy[i][k] + (xy[i + 1][k] - xy[i][k]) * (f - i));
+    },
+    // Each bend swaps `cut` of straight either side of its corner for a shorter arc.
+    len: (d) =>
+      bends.reduce(
+        (s, b) => s - (clamp(d - b.d, -b.cut, b.cut) + b.cut) * (1 - b.arc / b.cut),
+        d,
+      ),
+    near([x, y]) {
+      const gap = xy.map((p) => Math.hypot(p[0] - x, p[1] - y));
+      return (gap.indexOf(Math.min(...gap)) / n) * total;
+    },
+  };
+}
+
+// A line's two runs, out and back, each a list of hops between neighbouring stations: who from,
+// who to, when (timetable seconds into the run) and the `legs` of track ridden, as
+// [rail, from, to]. The way back takes the line's extra paths, which are the stations only
+// served in that direction, joining and leaving the main track where the two meet.
+function runs(line, tracks) {
+  const [main, ...extras] = tracks.filter((t) => t.line === line);
+  const stop = (track, k, t) => ({
+    id: track.part.stations[k],
+    rail: track.rail,
+    s: track.rail.len(track.part.at[k]),
+    t,
+  });
+  const out = line.stations.map((_, k) => stop(main, k, line.times[k]));
+  const back = out.map((s) => ({ ...s, t: line.times.at(-1) - s.t })).reverse();
+  for (const extra of extras) {
+    const ids = extra.part.stations,
+      at = extra.part.at;
+    const a = back.findIndex((s) => s.id === ids.at(-1)),
+      b = back.findIndex((s) => s.id === ids[0]);
+    if (a < 0 || b < a) continue;
+    // No times of their own: spread over the stretch of main line they stand in for.
+    const t = (k) => back[b].t + ((back[a].t - back[b].t) * at[k]) / at.at(-1);
+    const stops = ids.map((_, k) => stop(extra, k, t(k))).reverse();
+    stops[0].tip = extra.rail.total; // the ends of the extra's rail, where it meets the main one
+    stops.at(-1).tip = 0;
+    back.splice(a, b - a + 1, ...stops);
+  }
+  const legs = (p, q) => {
+    if (p.rail === q.rail) return [[p.rail, p.s, q.s]];
+    if (q.tip != null)
+      return [
+        [p.rail, p.s, p.rail.near(q.rail.at(q.tip))],
+        [q.rail, q.tip, q.s],
+      ];
+    return [
+      [p.rail, p.s, p.tip],
+      [q.rail, q.rail.near(p.rail.at(p.tip)), q.s],
+    ];
+  };
+  return [out, back].map((stops) =>
+    stops.slice(1).map((q, k) => {
+      const p = stops[k];
+      return { from: p.id, to: q.id, dep: p.t, arr: q.t, legs: legs(p, q) };
+    }),
+  );
+}
+
+// The timetable as a feed. Every train shuttles end to end and back for ever, enough of them a
+// line to keep its daytime frequency, evenly spaced. Between two stations a train stands for
+// DWELL, then eases out and into the next one. Its passengers are made up: each seat's rider
+// stays on for a few stops, then leaves it to another or to nobody. Worked out from the clock
+// alone, so there is nothing to keep in step.
+function scheduled(routes) {
+  const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (2 - 2 * t) ** 2 / 2);
+  const dice = (...seed) =>
+    seed.reduce((h, v) => Math.imul(h ^ v, 0x9e3779b1) ^ (h >>> 15), 0x2545f491) >>> 8;
+  const riders = (train, stop) =>
+    Array.from({ length: SEATS }, (_, seat) => {
+      const roll = dice(train, seat, Math.floor((stop + seat * 2) / (3 + seat)));
+      return roll % 5 < 3 ? [SHAPES[(roll >> 4) % SHAPES.length]] : [];
+    }).flat();
+  return (now) =>
+    routes.flatMap(({ line, runs }, r) => {
+      const lap = runs[0].at(-1).arr + TURN,
+        count = Math.max(1, Math.round((2 * lap * line.trainsPerHour) / 3600));
+      return Array.from({ length: count }, (_, k) => {
+        const clock = now * SPEED + (k * 2 * lap) / count,
+          t = clock % (2 * lap),
+          run = runs[t < lap ? 0 : 1];
+        const hop = run.findLast((h) => h.dep <= t % lap);
+        const stops = Math.floor(clock / lap) * run.length + run.indexOf(hop); // made so far
+        const moved = (t % lap - hop.dep - DWELL) / (hop.arr - hop.dep - DWELL);
+        return {
+          id: `${line.id}-${k}`,
+          line: line.id,
+          from: hop.from,
+          to: hop.to,
+          progress: ease(clamp(moved, 0, 1)),
+          load: riders(r * 1000 + k, stops),
+        };
+      });
+    });
+}
+
+function trains({ tracks, layers, lane }, map) {
+  const long = lane * 3.2,
+    wide = lane * 1.9;
+  for (const track of tracks) track.rail = rail(track, layers.trains);
+  const routes = map.lines.map((line) => ({ line, runs: runs(line, tracks) }));
+  const hops = new Map(
+    routes.flatMap(({ line, runs }) =>
+      runs.flat().map((h) => [`${line.id} ${h.from} ${h.to}`, { line, legs: h.legs }]),
+    ),
+  );
+
+  const cars = new Map(); // train id → its <g>, the <g> of its passengers and who they are
+  function car({ line }) {
+    const g = el("g", { class: "train" }, layers.trains);
+    const body = el(
+      "rect",
+      { x: -long / 2, y: -wide / 2, width: long, height: wide, rx: wide * 0.08 },
+      g,
+    );
+    body.style.fill = lineColor(line);
+    return { g, riders: el("g", { class: "riders" }, g), load: "" };
+  }
+  // Passengers sit two abreast, filling the car from the front.
+  const r = wide * 0.15;
+  const rider = {
+    circle: (x, y, to) => el("circle", { cx: x, cy: y, r }, to),
+    square: (x, y, to) =>
+      el("rect", { x: x - r * 0.9, y: y - r * 0.9, width: r * 1.8, height: r * 1.8 }, to),
+    triangle: (x, y, to) =>
+      el("path", { d: `M${x + r * 1.1} ${y}l${-r * 2} ${r * 1.15}v${-r * 2.3}z` }, to),
+  };
+  function seat(car, load = []) {
+    if (car.load === load.join()) return;
+    car.load = load.join();
+    car.riders.replaceChildren();
+    const rows = SEATS / 2,
+      pitch = (long * 0.86) / rows;
+    load.slice(0, SEATS).forEach((shape, k) => {
+      const x = (rows / 2 - Math.floor(k / 2) - 0.5) * pitch,
+        y = (k % 2 ? 1 : -1) * wide * 0.23;
+      rider[shape]?.(+x.toFixed(3), +y.toFixed(3), car.riders);
+    });
+  }
+
+  // Put a car on every train in `states`, and take away the cars of trains no longer in it.
+  function show(states) {
+    const live = new Set();
+    for (const state of states) {
+      const hop = hops.get(`${state.line} ${state.from} ${state.to}`);
+      if (!hop) continue; // not between two stations this map joins up
+      live.add(state.id);
+      if (!cars.has(state.id)) cars.set(state.id, car(hop));
+      const it = cars.get(state.id);
+      seat(it, state.load);
+      let d = state.progress * hop.legs.reduce((sum, [, a, b]) => sum + Math.abs(b - a), 0);
+      const [rail, a, b] =
+        hop.legs.find(([, a, b], k) => {
+          if (d <= Math.abs(b - a) || k === hop.legs.length - 1) return true;
+          d -= Math.abs(b - a);
+        });
+      const way = b < a ? -1 : 1,
+        s = a + way * d;
+      // Headed along the chord under it, so it swings through a bend rather than snapping.
+      const [x, y] = rail.at(s),
+        [fx, fy] = rail.at(s + (way * long) / 3),
+        [bx, by] = rail.at(s - (way * long) / 3);
+      const turn = (Math.atan2(fy - by, fx - bx) * 180) / Math.PI;
+      it.g.setAttribute(
+        "transform",
+        `translate(${x.toFixed(3)} ${y.toFixed(3)}) rotate(${turn.toFixed(1)})`,
+      );
+    }
+    for (const [id, { g }] of cars)
+      if (!live.has(id)) {
+        g.remove();
+        cars.delete(id);
+      }
+  }
+
+  // Trains only show on the view screen, so that is the only time they are moved. With motion
+  // off they are put where they are right now and left standing.
+  const feed = scheduled(routes);
+  let shown = false;
+  const frame = () => {
+    const on = svg.classList.contains("viewing");
+    if (on && (prefs.motion || !shown)) show(feed(Date.now() / 1000));
+    shown = on;
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+  return { show };
 }
 
 // --- camera: the viewBox. While `roam` is on it is driven by drag, pinch and wheel and kept on
 // the map; otherwise it goes wherever the menu glides it, off the map's edge included.
-function camera({ box, hub }) {
+function camera({ box, hub, lane }) {
+  const MAX_ZOOM = LINE_MAX / lane, // all px per schematic unit
+    MENU_ZOOM = LINE_MENU / lane,
+    VIEW_ZOOM = LINE_VIEW / lane;
   const view = { x: 0, y: 0, k: 1 }; // centre in schematic units, k = px per unit
   const cam = { dragging: false, roam: false, onMove() {}, onTap() {} };
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
   let rect, fit, anim, settle, touched = false;
+
+  // A view kept on the map: an axis the map fits along stays centred; the other stops at the
+  // map's edge.
+  function hold({ x, y, k }) {
+    const axis = (c, lo, size, span) =>
+      span >= size ? lo + size / 2 : clamp(c, lo + span / 2, lo + size - span / 2);
+    return {
+      x: axis(x, box.x, box.w, rect.width / k),
+      y: axis(y, box.y, box.h, rect.height / k),
+      k,
+    };
+  }
 
   function apply() {
     if (cam.roam) view.k = clamp(view.k, fit, Math.max(MAX_ZOOM, fit));
     const w = rect.width / view.k,
       h = rect.height / view.k;
-    // An axis the map fits along stays centred; the other stops at the map's edge.
-    const hold = (c, lo, size, span) =>
-      span >= size ? lo + size / 2 : clamp(c, lo + span / 2, lo + size - span / 2);
-    if (cam.roam) {
-      view.x = hold(view.x, box.x, box.w, w);
-      view.y = hold(view.y, box.y, box.h, h);
-    }
+    if (cam.roam) Object.assign(view, hold(view));
     svg.setAttribute(
       "viewBox",
       [view.x - w / 2, view.y - h / 2, w, h].map((v) => +v.toFixed(3)).join(" "),
@@ -446,6 +688,8 @@ function camera({ box, hub }) {
   }
 
   cam.whole = () => ({ x: box.x + box.w / 2, y: box.y + box.h / 2, k: fit });
+  // Where the view screen opens: on the hub, or on the whole map if that is closer still.
+  cam.open = () => (fit < VIEW_ZOOM ? hold({ x: hub.x, y: hub.y, k: VIEW_ZOOM }) : cam.whole());
   // The menu's view: close in on `base`, or (dx, dy) screens away from it.
   cam.base = hub;
   cam.spot = (dx = 0, dy = 0) => {
@@ -731,7 +975,7 @@ function menu({ tracks, box, hub }, cam) {
   const item = (id) => nav.querySelector(`[data-go="${id}"]`);
   const spot = (id) => {
     cam.base = seat();
-    return id === "view" ? cam.whole() : cam.spot(...(SCREENS[id] ?? []));
+    return id === "view" ? cam.open() : cam.spot(...(SCREENS[id] ?? []));
   };
   const ms = () => (prefs.motion ? 900 : 0);
   let screen = null, // null on the menu itself
@@ -868,10 +1112,12 @@ function menu({ tracks, box, hub }, cam) {
 }
 
 try {
-  const drawn = draw(await loadMap());
+  const map = await loadMap();
+  const drawn = draw(map);
   const cam = camera(drawn);
   interact(drawn, cam);
   menu(drawn, cam);
+  trains(drawn, map);
 } catch (err) {
   console.error(err);
   status.textContent = "The map couldn't be loaded. Try refreshing.";

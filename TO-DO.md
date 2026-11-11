@@ -48,14 +48,14 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [x] Stations: white circles with colored outline; transfers as bigger white circles / pills
 - [x] Fit to viewport with padding, works on phone portrait and desktop landscape
 - [x] Hover/tap a station → name label (no permanent label clutter)
-- [x] Camera: drag / pinch / wheel to pan and zoom; small screens open on the whole map, then
-      close in on downtown at a readable size
+- [x] Camera: drag / pinch / wheel to pan and zoom; the view opens close in on the hub at a
+      readable size and zooms out as far as the whole map
 
 ## 6. Animate
 - [ ] Intro: lines draw in one at a time (`stroke-dashoffset`), stations pop in after
-- [ ] Trains: small rounded rectangles moving along each line's path
-- [ ] Trains ease into stations, pause briefly, ease out; reverse at terminals
-- [ ] Rough frequency from GTFS (trains per line ~ headway), but simulated — not real-time
+- [x] Trains: small rounded rectangles moving along each line's path
+- [x] Trains ease into stations, pause briefly, ease out; reverse at terminals
+- [x] Rough frequency from GTFS (trains per line ~ headway), but simulated — not real-time
 - [ ] Day/night: background + palette shift based on current LA time (`America/Los_Angeles`)
 - [ ] Respect `prefers-reduced-motion` (skip intro, slow/stop trains)
 
@@ -80,3 +80,10 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [ ] Future extensions as faint dotted lines ("coming soon")
 - [ ] Click a line → it highlights, others fade
 - [ ] Sound: soft chime when a train arrives (off by default)
+- [ ] Train crowding: G is still the busiest-looking line (cars cover ~51% of it). Try
+      `LANE = 0.15` in `scripts/schematize.mjs`, or shorter bus-sized cars for G
+- [ ] Lines get thin zoomed all the way out (~4.6px on desktop, less on a phone) — maybe a
+      floor on line thickness, or a tighter zoom-out cap
+- [ ] On-screen zoom +/− buttons, for desktop visitors with no wheel or trackpad
+- [ ] Tune the view's opening crop (`LINE_VIEW` in `map.js`): on desktop the G Line sits right
+      on the top edge of the window

@@ -39,7 +39,7 @@
 //             instead of on top of each other. The shifted lines' stops are then slid along the
 //             track to line up with the station's other stops, so the marker is one straight pill.
 
-export const LANE = 0.3; // gap between parallel lines, and the stroke width the layout assumes
+export const LANE = 0.2; // gap between parallel lines, and the stroke width the layout assumes
 export const MIN_SPACING = 0.9; // station centres closer than this are reported
 const SEED_SCALE = 0.6; // km → units, only used to seed a line with no placed station at all
 const EPS = 1e-6;

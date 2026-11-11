@@ -74,13 +74,23 @@
         stroke-linecap: butt;
         stroke-linejoin: round;
       }
-      /* Stations only show on the view screen: behind the menu the map is just its lines. */
-      #stations {
+      /* Stations and trains only show on the view screen: behind the menu the map is just its
+         lines. */
+      #stations,
+      #trains {
         opacity: 0;
         transition: opacity 0.5s;
       }
-      .viewing #stations {
+      .viewing #stations,
+      .viewing #trains {
         opacity: 1;
+      }
+      #trains {
+        pointer-events: none;
+      }
+      .train .riders {
+        fill: var(--dot);
+        opacity: 0.7;
       }
       .station {
         outline: none;
