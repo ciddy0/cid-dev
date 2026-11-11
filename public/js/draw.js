@@ -3,6 +3,7 @@
 // the halo round the picked station sits over everything.
 import { el, svg } from "./dom.js";
 import { bendRadii, bendShift, bounds, toD } from "./geometry.js";
+import { onLang, t } from "./lang.js";
 import { round } from "./math.js";
 import { lineColor, lineParts } from "./network.js";
 import { termini } from "./termini.js";
@@ -95,17 +96,16 @@ function drawStations(map, tracks, size, layer, ink) {
     const s = map.stations[id];
     if (!s) continue;
     const lines = s.lines.map((l) => lineById.get(l)).filter(Boolean);
-    const names = lines.map((l) => l.id).join(", ");
     const g = el(
       "g",
       {
         class: s.transfer ? "station transfer" : "station",
         tabindex: 0,
         role: "img",
-        "aria-label": `${s.name}, ${names} ${lines.length > 1 ? "lines" : "line"}`,
       },
       layer,
     );
+    onLang(() => g.setAttribute("aria-label", t("station", s.name, lines.map((l) => l.id))));
     // Every station is the same white disc with a dark edge, a bit wider than a line. One that
     // has to sit over more lanes than that grows just enough to cover them.
     const span = Math.max(

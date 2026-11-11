@@ -19,21 +19,27 @@ const GAP = 0.25; // s between two arrival notes, at the least
 const STEP = 0.075; // s between the notes of a menu figure
 const PAN = 0.75; // how far to one side the edge of the screen sounds
 const HUM = [43.65, 65.41]; // Hz: F1 and C2
+const LOUD = [0.35, 1, 1.8]; // the gain at each step of the volume pref
 
 const hz = (midi) => 440 * 2 ** ((midi - 69) / 12);
 const rung = (i) => LOW + 12 * Math.floor(i / LADDER.length) + LADDER[i % LADDER.length];
 
-let audio, out, room, wave, hum;
+let audio, out, master, room, wave, hum;
 
 // The audio graph, built on first use. Browsers only let that be a click or a key press, so
 // until one has happened with sound on, `ready` returns nothing and nothing plays.
 const ready = () => (prefs.sound && audio) || null;
 function wake() {
   if (!prefs.sound) return;
-  if (audio) return void audio.resume();
+  if (audio) {
+    master.gain.value = LOUD[prefs.volume] ?? 1;
+    return void audio.resume();
+  }
   audio = new AudioContext();
   out = audio.createDynamicsCompressor();
-  out.connect(audio.destination);
+  master = audio.createGain();
+  master.gain.value = LOUD[prefs.volume] ?? 1;
+  out.connect(master).connect(audio.destination);
   // The room: 2.2 s of fading noise for a convolver to smear every note with.
   const len = Math.floor(audio.sampleRate * 2.2),
     ir = audio.createBuffer(2, len, audio.sampleRate);

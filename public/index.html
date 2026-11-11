@@ -14,11 +14,7 @@
   </head>
   <body>
     <main>
-      <svg
-        id="map"
-        role="group"
-        aria-label="Schematic map of the LA Metro rail network"
-      ></svg>
+      <svg id="map" role="group" data-t-label="map"></svg>
     </main>
     <div id="label" role="status"></div>
 
@@ -27,54 +23,56 @@
         <path d="M2 12h18M11.5 4.5 19.5 12l-8 7.5" />
       </symbol>
     </svg>
-    <nav id="menu" aria-label="Menu">
+    <nav id="menu" data-t-label="menu">
       <button data-go="view">
-        <svg class="arrow"><use href="#arrow" /></svg><span>View</span>
+        <svg class="arrow"><use href="#arrow" /></svg><span data-t="view"></span>
       </button>
       <button data-go="resume">
         <svg class="arrow" style="--turn: -45deg"><use href="#arrow" /></svg
-        ><span>Resume</span>
+        ><span data-t="resume"></span>
       </button>
       <button data-go="docs">
         <svg class="arrow" style="--turn: 45deg"><use href="#arrow" /></svg
-        ><span>Docs</span>
+        ><span data-t="docs"></span>
       </button>
       <button data-go="settings">
         <svg class="arrow" style="--turn: 90deg"><use href="#arrow" /></svg
-        ><span>Settings</span>
+        ><span data-t="settings"></span>
       </button>
     </nav>
-    <button id="back" aria-label="Back to the menu" hidden>
+    <button id="back" data-t-label="back" hidden>
       <svg class="arrow"><use href="#arrow" /></svg>
     </button>
 
-    <section class="screen" id="resume" aria-labelledby="resume-title" hidden>
-      <div class="card">
-        <h1 id="resume-title">Resume</h1>
-        <p>Coming soon.</p>
-      </div>
+    <!-- Every data-t and data-t-label names its words in js/lang.js. -->
+    <section class="screen" id="resume" data-t-label="resume" hidden>
+      <div class="card" data-t="resumeCard"></div>
     </section>
-    <section class="screen" id="docs" aria-labelledby="docs-title" hidden>
-      <div class="card">
-        <h1 id="docs-title">Docs</h1>
-        <p>
-          A schematic of the LA Metro rail network, drawn from Metro's
-          published timetable data and straightened onto 45° and 90° bends.
-        </p>
-        <ul>
-          <li><b>View</b> pulls back to the whole network.</li>
-          <li><b>Drag</b> to move around, <b>pinch or scroll</b> to zoom.</li>
-          <li><b>Tap or hover</b> a station for its name and lines.</li>
-          <li><b>Tab</b> steps through stations along each line.</li>
-          <li>The arrow in the corner (or <b>Esc</b>) brings you back here.</li>
-        </ul>
-      </div>
+    <section class="screen" id="docs" data-t-label="docs" hidden>
+      <div class="card" data-t="docsCard"></div>
     </section>
-    <section class="screen" id="settings" aria-labelledby="settings-title" hidden>
-      <div class="card">
-        <h1 id="settings-title">Settings</h1>
-        <button class="switch" role="switch" data-pref="motion">Motion</button>
-        <button class="switch" role="switch" data-pref="sound">Sound</button>
+    <section class="screen" id="settings" data-t-label="settings" hidden>
+      <div class="settings">
+        <div class="row" role="group" aria-labelledby="lang-name">
+          <span id="lang-name" data-t="lang"></span>
+          <span class="stepper" data-pref="lang">
+            <button data-by="-1" data-t-label="previous"></button>
+            <output aria-live="polite"></output>
+            <button data-by="1" data-t-label="next"></button>
+          </span>
+        </div>
+        <button class="row switch" role="switch" data-pref="night" data-t="night"></button>
+        <button class="row switch" role="switch" data-pref="colorblind" data-t="colorblind"></button>
+        <button class="row switch" role="switch" data-pref="motion" data-t="motion"></button>
+        <button class="row switch" role="switch" data-pref="sound" data-t="sound"></button>
+        <div class="row" role="group" aria-labelledby="volume-name">
+          <span id="volume-name" data-t="volume"></span>
+          <span class="stepper" data-pref="volume">
+            <button data-by="-1" data-t-label="quieter"></button>
+            <output aria-live="polite"></output>
+            <button data-by="1" data-t-label="louder"></button>
+          </span>
+        </div>
       </div>
     </section>
     <p id="status" hidden></p>

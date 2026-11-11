@@ -9,6 +9,9 @@ export async function loadMap() {
 export const lineColor = (line) =>
   `var(--line-${line.id.toLowerCase()}, ${line.color})`;
 
+// And the colour of the letter written on it.
+export const lineInk = (line) => `var(--ink-${line.id.toLowerCase()}, ${line.textColor})`;
+
 // Everything a line is drawn as: its main path, then any extra paths (stations only served in
 // one direction). Each has `stations`, `path`, `stops` and `at`.
 export const lineParts = (line) => [line, ...(line.extraPaths ?? [])];

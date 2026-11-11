@@ -19,6 +19,35 @@
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
 }
+:root.day {
+  color-scheme: light;
+  --bg: #efede6;
+  --dot: #fdfcf9;
+  --dot-edge: #23262d;
+  --halo: rgba(35, 38, 45, 0.45);
+  --label-bg: #fdfcf9;
+  --label-edge: rgba(35, 38, 45, 0.14);
+  --label-ink: #23262d;
+  --muted: #7b808a;
+}
+/* Colorblind mode: the Okabe–Ito palette, which keeps apart under every common kind of
+   colour blindness. */
+:root.cb {
+  --line-a: #0072b2;
+  --line-b: #d55e00;
+  --line-c: #009e73;
+  --line-d: #cc79a7;
+  --line-e: #f0e442;
+  --line-g: #e69f00;
+  --line-k: #56b4e9;
+  --ink-a: #fff;
+  --ink-b: #0c0e12;
+  --ink-c: #0c0e12;
+  --ink-d: #0c0e12;
+  --ink-e: #0c0e12;
+  --ink-g: #0c0e12;
+  --ink-k: #0c0e12;
+}
 * {
   box-sizing: border-box;
 }
@@ -166,7 +195,7 @@ button {
   cursor: pointer;
 }
 button:focus-visible {
-  outline: 2px solid var(--dot);
+  outline: 2px solid currentColor;
   outline-offset: 4px;
 }
 [hidden] {
@@ -271,29 +300,65 @@ button:focus-visible {
 .card b {
   font-weight: 600;
 }
-.switch {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 8px 0;
-  font-size: 17px;
-  font-weight: 600;
-}
-.switch::after {
-  content: "✕";
+/* The settings: names down the left, each one's switch or stepper to its right, straight on
+   the map. */
+.settings {
   display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 2px var(--dot);
-  font-size: 15px;
+  grid-template-columns: auto auto;
+  gap: 0.35em 0.7em;
+  font-size: clamp(19px, 3.6vmin, 26px);
+  letter-spacing: -0.01em;
+  pointer-events: auto;
+}
+.row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 0.15em 0;
+  text-align: right;
+}
+/* A switch is a disc: solid with a cross when off, a ring with a tick when on. */
+.switch::after {
+  content: "";
+  width: 1.7em;
+  height: 1.7em;
+  background: currentColor;
+  mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><mask id="m"><rect width="24" height="24" fill="white"/><path d="M8.2 8.2l7.6 7.6M15.8 8.2l-7.6 7.6" stroke="black" stroke-width="2.6" stroke-linecap="round"/></mask><circle cx="12" cy="12" r="12" mask="url(%23m)"/></svg>')
+    center / contain no-repeat;
 }
 .switch[aria-checked="true"]::after {
-  content: "✓";
-  background: var(--dot);
-  color: var(--bg);
+  mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="11" stroke-width="2"/><path d="M7 12.6l3.5 3.5 6.6-8" stroke-width="2.6"/></svg>');
+}
+.stepper {
+  display: flex;
+  align-items: center;
+}
+.stepper output {
+  min-width: 6.5em;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-align: center;
+}
+.stepper button {
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+}
+.stepper button::before {
+  content: "";
+  width: 0.72em;
+  height: 0.9em;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.stepper [data-by="-1"]::before {
+  rotate: 180deg;
+}
+.stepper [aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: default;
 }
 
 #status,

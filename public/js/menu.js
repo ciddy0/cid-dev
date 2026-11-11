@@ -36,7 +36,8 @@ export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } =
     busy = true;
 
   // Where the menu sits: the spot nearest the hub with room for its buttons and a margin, clear
-  // of every line. Failing that, the roomiest spot there is. Worked out once per screen size.
+  // of every line. Failing that, the roomiest spot there is. Worked out once per screen size
+  // and language, since the words set how wide it is.
   const dots = tracks.flatMap(({ pts }) =>
     pts.slice(1).flatMap(([x, y], i) => {
       const [px, py] = pts[i],
@@ -49,7 +50,7 @@ export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } =
   );
   let seated = {};
   function seat() {
-    const key = `${innerWidth}x${innerHeight}`;
+    const key = `${innerWidth}x${innerHeight} ${prefs.lang}`;
     if (seated.key === key || nav.hidden) return seated.at; // hidden, it can't be measured
     const r = [...nav.children].map((b) => b.getBoundingClientRect()),
       k = menuZoom(),

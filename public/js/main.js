@@ -3,6 +3,7 @@
 import { camera } from "./camera.js";
 import { draw } from "./draw.js";
 import { stationLabel } from "./label.js";
+import { t } from "./lang.js";
 import { menu } from "./menu.js";
 import { loadMap } from "./network.js";
 import { settings } from "./settings.js";
@@ -20,6 +21,6 @@ try {
 } catch (err) {
   console.error(err);
   const status = document.getElementById("status");
-  status.textContent = "The map couldn't be loaded. Try refreshing.";
+  status.textContent = t("failed");
   status.hidden = false;
 }

@@ -2,7 +2,7 @@
 // with a halo round the station it names.
 import { svg } from "./dom.js";
 import { clamp } from "./math.js";
-import { lineColor } from "./network.js";
+import { lineColor, lineInk } from "./network.js";
 
 const HOVER_REACH = 12; // px from a station that the mouse still picks it
 const TAP_REACH = 24; // and a finger
@@ -40,7 +40,7 @@ export function stationLabel({ stations, halo, lane }, cam) {
       chip.className = "chip";
       chip.textContent = line.id;
       chip.style.background = lineColor(line);
-      chip.style.color = line.textColor;
+      chip.style.color = lineInk(line);
       chips.append(chip);
     }
     const name = document.createElement("span");
