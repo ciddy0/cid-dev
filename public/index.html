@@ -74,6 +74,14 @@
         stroke-linecap: butt;
         stroke-linejoin: round;
       }
+      /* Stations only show on the view screen: behind the menu the map is just its lines. */
+      #stations {
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+      .viewing #stations {
+        opacity: 1;
+      }
       .station {
         outline: none;
       }
@@ -143,6 +151,154 @@
         text-overflow: ellipsis;
       }
 
+      .arrow {
+        flex: none;
+        width: 1em;
+        height: 1em;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 3.6;
+        transform: rotate(var(--turn, 0deg));
+      }
+      button {
+        border: 0;
+        padding: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 2px solid var(--dot);
+        outline-offset: 4px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .calm * {
+        transition: none !important;
+      }
+
+      #menu,
+      .screen {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        pointer-events: none;
+        will-change: transform;
+      }
+      #menu {
+        place-content: center;
+        justify-items: start;
+        gap: 0.14em;
+        font-size: clamp(28px, 5.5vmin, 44px);
+        font-weight: 700;
+        line-height: 1.12;
+        letter-spacing: -0.02em;
+      }
+      #menu button {
+        display: flex;
+        align-items: center;
+        gap: 0.18em;
+        pointer-events: auto;
+        transform-origin: left center;
+        transition:
+          transform 0.2s,
+          opacity 0.2s;
+      }
+      #menu span {
+        padding: 0 0.16em;
+        background: var(--line-a);
+        color: var(--dot);
+      }
+      #menu button:hover span {
+        filter: brightness(1.12);
+      }
+      #menu.choosing button:not(.picked) {
+        opacity: 0.4;
+      }
+      #menu .picked {
+        transform: scale(1.22);
+      }
+
+      #back {
+        position: fixed;
+        left: calc(10px + env(safe-area-inset-left));
+        top: calc(10px + env(safe-area-inset-top));
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        font-size: 32px;
+        filter: drop-shadow(0 0 3px var(--bg));
+      }
+
+      .screen {
+        place-items: center;
+        padding: calc(68px + env(safe-area-inset-top)) 16px
+          calc(16px + env(safe-area-inset-bottom));
+      }
+      .card {
+        width: min(100%, 420px);
+        max-height: 100%;
+        overflow: auto;
+        padding: 22px 24px;
+        border-radius: 16px;
+        background: var(--label-bg);
+        box-shadow:
+          0 0 0 1px var(--label-edge),
+          0 6px 20px rgba(0, 0, 0, 0.45);
+        font-size: 15px;
+        line-height: 1.5;
+        pointer-events: auto;
+      }
+      .card h1 {
+        margin: 0 0 10px;
+        font-size: 24px;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+      }
+      .card p,
+      .card ul {
+        margin: 0 0 10px;
+        padding: 0;
+        list-style: none;
+        opacity: 0.82;
+      }
+      .card :last-child {
+        margin-bottom: 0;
+      }
+      .card li + li {
+        margin-top: 6px;
+      }
+      .card b {
+        font-weight: 600;
+      }
+      .switch {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 8px 0;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .switch::after {
+        content: "✕";
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 2px var(--dot);
+        font-size: 15px;
+      }
+      .switch[aria-checked="true"]::after {
+        content: "✓";
+        background: var(--dot);
+        color: var(--bg);
+      }
+
       #status,
       .status {
         position: fixed;
@@ -169,6 +325,62 @@
       ></svg>
     </main>
     <div id="label" role="status"></div>
+
+    <svg hidden>
+      <symbol id="arrow" viewBox="0 0 24 24">
+        <path d="M2 12h18M11.5 4.5 19.5 12l-8 7.5" />
+      </symbol>
+    </svg>
+    <nav id="menu" aria-label="Menu">
+      <button data-go="view">
+        <svg class="arrow"><use href="#arrow" /></svg><span>View</span>
+      </button>
+      <button data-go="resume">
+        <svg class="arrow" style="--turn: -45deg"><use href="#arrow" /></svg
+        ><span>Resume</span>
+      </button>
+      <button data-go="docs">
+        <svg class="arrow" style="--turn: 45deg"><use href="#arrow" /></svg
+        ><span>Docs</span>
+      </button>
+      <button data-go="settings">
+        <svg class="arrow" style="--turn: 90deg"><use href="#arrow" /></svg
+        ><span>Settings</span>
+      </button>
+    </nav>
+    <button id="back" aria-label="Back to the menu" hidden>
+      <svg class="arrow"><use href="#arrow" /></svg>
+    </button>
+
+    <section class="screen" id="resume" aria-labelledby="resume-title" hidden>
+      <div class="card">
+        <h1 id="resume-title">Resume</h1>
+        <p>Coming soon.</p>
+      </div>
+    </section>
+    <section class="screen" id="docs" aria-labelledby="docs-title" hidden>
+      <div class="card">
+        <h1 id="docs-title">Docs</h1>
+        <p>
+          A schematic of the LA Metro rail network, drawn from Metro's
+          published timetable data and straightened onto 45° and 90° bends.
+        </p>
+        <ul>
+          <li><b>View</b> pulls back to the whole network.</li>
+          <li><b>Drag</b> to move around, <b>pinch or scroll</b> to zoom.</li>
+          <li><b>Tap or hover</b> a station for its name and lines.</li>
+          <li><b>Tab</b> steps through stations along each line.</li>
+          <li>The arrow in the corner (or <b>Esc</b>) brings you back here.</li>
+        </ul>
+      </div>
+    </section>
+    <section class="screen" id="settings" aria-labelledby="settings-title" hidden>
+      <div class="card">
+        <h1 id="settings-title">Settings</h1>
+        <button class="switch" role="switch" data-pref="motion">Motion</button>
+        <button class="switch" role="switch" data-pref="sound">Sound</button>
+      </div>
+    </section>
     <p id="status" hidden></p>
     <noscript><p class="status">The map needs JavaScript to draw.</p></noscript>
     <script type="module" src="map.js"></script>
