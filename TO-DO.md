@@ -73,7 +73,8 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 ## Later / maybe
 - [ ] Live trains — LA Metro's real-time feed needs an API key; check whether there's a public
       feed that doesn't, otherwise skip. A Worker would proxy + cache it
-- [ ] Bus rapid lines (G, J) as dashed lines
+- [x] G busway line, drawn as a full line like on Metro's own map
+- [ ] J busway line
 - [ ] Future extensions as faint dotted lines ("coming soon")
 - [ ] Click a line → it highlights, others fade
 - [ ] Sound: soft chime when a train arrives (off by default)

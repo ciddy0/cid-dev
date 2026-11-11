@@ -3,7 +3,7 @@
 // and ridden with getPointAtLength later, its terminus Ts drawn separately on top) and
 // trains get their own empty layer.
 const NS = "http://www.w3.org/2000/svg";
-const PAD = 1.5; // schematic units around the bounds, room for strokes and markers
+const PAD = 0.7; // schematic units of clear space around everything drawn
 
 const svg = document.getElementById("map");
 const label = document.getElementById("label");
@@ -105,23 +105,24 @@ async function loadMap() {
 
 // --- drawing: returns the stations in tab order, each with its <g> and halo radius
 function draw(map) {
-  const { lane, bounds: b } = map.layout;
+  const { lane } = map.layout;
   const size = {
     line: lane, // lanes are one stroke apart, so shared track reads as touching ribbons
     dot: lane * 0.75,
     edge: lane * 0.34,
     corner: 0.5, // bend radius, in schematic units
   };
-  svg.setAttribute(
-    "viewBox",
-    [
-      b.minX - PAD,
-      b.minY - PAD,
-      b.maxX - b.minX + 2 * PAD,
-      b.maxY - b.minY + 2 * PAD,
-    ].join(" "),
-  );
   svg.replaceChildren();
+
+  // The view is fitted to what actually gets drawn (strokes, Ts and discs included), so the map
+  // sits dead centre whichever way its outermost lines happen to end.
+  const ink = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const cover = (x, y, r = 0) => {
+    ink.minX = Math.min(ink.minX, x - r);
+    ink.minY = Math.min(ink.minY, y - r);
+    ink.maxX = Math.max(ink.maxX, x + r);
+    ink.maxY = Math.max(ink.maxY, y + r);
+  };
 
   const layers = Object.fromEntries(
     ["lines", "stations", "trains", "overlay"].map((id) => [
@@ -139,6 +140,7 @@ function draw(map) {
     for (const [i, part] of [line, ...(line.extraPaths ?? [])].entries()) {
       const pts = part.path;
       tracks.push({ line, pts });
+      for (const [x, y] of pts) cover(x, y, lane / 2);
       if (i === 0) ends.push(...lineEnds(pts).map((end) => ({ ...end, line })));
       const path = el(
         "path",
@@ -182,6 +184,9 @@ function draw(map) {
     ];
     return {
       segs: [[[e.x + dx * skip, e.y + dy * skip], tip], cross],
+      corners: cross.flatMap(([x, y]) =>
+        [1, -1].map((k) => [x + (k * dx * lane) / 2, y + (k * dy * lane) / 2]),
+      ),
       d:
         `M${n(e.x)} ${n(e.y)}L${n(tip[0])} ${n(tip[1])}` +
         `M${n(cross[0][0])} ${n(cross[0][1])}L${n(cross[1][0])} ${n(cross[1][1])}`,
@@ -220,6 +225,7 @@ function draw(map) {
         [0, 1, -1, 2, -2, 3, -3].map((turn) => tee(e, turn)).find(clear)) ||
       tee(e, 0, reach);
     placed.push(...t.segs);
+    for (const [x, y] of t.corners) cover(x, y);
     const path = el(
       "path",
       {
@@ -270,8 +276,21 @@ function draw(map) {
       y = +(s.y + mean(1)).toFixed(3);
     el("circle", { cx: x, cy: y, r, "stroke-width": size.edge }, g);
     const reach = r + size.edge / 2;
+    cover(x, y, reach);
     stations.push({ id, ...s, x, y, lines, g, halo: reach + lane * 0.8 });
   }
+
+  svg.setAttribute(
+    "viewBox",
+    [
+      ink.minX - PAD,
+      ink.minY - PAD,
+      ink.maxX - ink.minX + 2 * PAD,
+      ink.maxY - ink.minY + 2 * PAD,
+    ]
+      .map((v) => +v.toFixed(3))
+      .join(" "),
+  );
 
   const halo = el(
     "circle",

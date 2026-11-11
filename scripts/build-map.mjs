@@ -33,7 +33,12 @@ function parseCSV(text) {
   return body.map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])));
 }
 
-const load = async (name) => parseCSV(await readFile(new URL(name, RAW), "utf8"));
+// Rail tables, with the busway rows from data/raw/bus/ (if fetched) appended to each.
+const load = async (name) => {
+  const rail = parseCSV(await readFile(new URL(name, RAW), "utf8"));
+  const bus = parseCSV(await readFile(new URL(`bus/${name}`, RAW), "utf8").catch(() => ""));
+  return [...rail, ...bus.map((row) => ({ ...row, bus: true }))];
+};
 const [routes, trips, stops, stopTimes] = await Promise.all(
   ["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"].map(load),
 );
@@ -43,7 +48,14 @@ const toSec = (t) => { const [h, m, s] = t.split(":").map(Number); return h * 36
 
 // --- index the raw tables
 const stopById = new Map(stops.map((s) => [s.stop_id, s]));
-const stationOf = (stopId) => stopById.get(stopId)?.parent_station || stopId;
+// A busway station is a stop per direction with the same name and no parent; the first one
+// stands in for the station.
+const busStation = new Map();
+for (const s of stops) if (s.bus && !busStation.has(s.stop_name)) busStation.set(s.stop_name, s.stop_id);
+const stationOf = (stopId) => {
+  const s = stopById.get(stopId);
+  return s?.parent_station || (s?.bus && busStation.get(s.stop_name)) || stopId;
+};
 
 const timesByTrip = new Map();
 for (const st of stopTimes) {
@@ -121,7 +133,7 @@ for (const route of routes) {
 
   lines.push({
     id,
-    name: route.route_long_name.replace(/^Metro /, ""),
+    name: route.route_long_name.replace(/^Metro (\w Line).*/, "$1"),
     color: `#${route.route_color}`,
     textColor: `#${route.route_text_color}`,
     stations: stationIds,
@@ -165,7 +177,7 @@ const overrides = JSON.parse(await readFile(OVERRIDES, "utf8").catch(() => "{}")
 const schematic = schematize(lines, stations, overrides);
 
 const out = {
-  source: { feed: "https://gitlab.com/LACMTA/gtfs_rail", ...source, built_at: new Date().toISOString() },
+  source: { feed: "https://gitlab.com/LACMTA/gtfs_rail", busFeed: "https://gitlab.com/LACMTA/gtfs_bus", ...source, built_at: new Date().toISOString() },
   projection: { lat0: round(lat0 * 1e4) / 1e4, lon0: round(lon0 * 1e4) / 1e4, units: "km" },
   layout: schematic.layout,
   lines: schematic.lines,
