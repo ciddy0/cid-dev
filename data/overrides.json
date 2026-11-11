@@ -1,0 +1,63 @@
+{
+  "pins": {
+    "7th Street / Metro Center": [0, 0],
+    "Pico": [0, 1],
+    "Little Tokyo / Arts District": [4, 0],
+    "Union": [4, -3],
+    "Pershing Square": [1.25, -1.25],
+    "Civic Center / Grand Park": [3, -3],
+
+    "Chinatown": [4, -4],
+    "Fillmore": [10, -10],
+    "Glendora": [22, -10],
+    "Pomona North": [25, -7],
+
+    "San Pedro Street": [2, 3],
+    "Willowbrook - Rosa Parks": [2, 10],
+    "Anaheim Street": [2, 17],
+    "5th Street": [2, 18],
+    "1st Street": [2, 19],
+    "Downtown Long Beach": [1, 19],
+    "Pacific Ave": [1, 18],
+
+    "Wilshire / Vermont": [-3, 0],
+    "Westlake / MacArthur Park": [-1.75, 0],
+    "Wilshire / La Cienega": [-8, 0],
+    "Vermont / Beverly": [-3, -1.7],
+    "Vermont / Santa Monica": [-3, -2.85],
+    "Vermont / Sunset": [-3, -4],
+    "Hollywood / Western": [-4, -5],
+    "Hollywood / Highland": [-6, -5],
+    "Universal / Studio City": [-8, -7],
+    "North Hollywood": [-8, -10],
+
+    "LATTC / Ortho Institute": [-1, 2],
+    "Expo / Crenshaw": [-6, 2],
+    "26th Street / Bergamot": [-15, 2],
+    "Downtown Santa Monica": [-17, 4],
+    "Pico / Aliso": [4.95, 0],
+    "Mariachi Plaza / Boyle Heights": [5.9, 0],
+    "Soto": [7, 0],
+    "Maravilla": [9, 2],
+    "Atlantic": [11, 2],
+
+    "Hyde Park": [-6, 5],
+    "Fairview Heights": [-7, 6],
+    "Downtown Inglewood": [-8, 6],
+    "Westchester / Veterans": [-9, 7],
+    "LAX / Metro Transit Center": [-9, 8.15],
+    "Aviation / Century": [-9, 9],
+    "Mariposa": [-10, 10],
+    "Redondo Beach": [-10, 13],
+
+    "Aviation / Imperial": [-8, 10],
+    "Norwalk": [7, 10]
+  },
+  "bends": {
+    "Pacific Ave > Anaheim Street": "N-E"
+  },
+  "sides": [["E", "A"]],
+  "shifts": [
+    { "lines": ["B", "D"], "at": "7th Street / Metro Center", "by": -2 }
+  ]
+}

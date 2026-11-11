@@ -1,9 +1,12 @@
 // Turns the raw GTFS in data/raw/ into public/data/metro.json — the small file the map loads.
-// Run scripts/fetch-gtfs.mjs first.
+// Run scripts/fetch-gtfs.mjs first. The schematic layout comes from schematize.mjs, steered by
+// the hand-edited data/overrides.json.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { schematize } from "./schematize.mjs";
 
 const RAW = new URL("../data/raw/", import.meta.url);
 const OUT = new URL("../public/data/metro.json", import.meta.url);
+const OVERRIDES = new URL("../data/overrides.json", import.meta.url);
 
 // Minimal CSV parser: handles quoted fields, BOM, and CRLF.
 function parseCSV(text) {
@@ -31,8 +34,8 @@ function parseCSV(text) {
 }
 
 const load = async (name) => parseCSV(await readFile(new URL(name, RAW), "utf8"));
-const [routes, trips, stops, stopTimes, shapePts] = await Promise.all(
-  ["routes.txt", "trips.txt", "stops.txt", "stop_times.txt", "shapes.txt"].map(load),
+const [routes, trips, stops, stopTimes] = await Promise.all(
+  ["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"].map(load),
 );
 const source = JSON.parse(await readFile(new URL("_source.json", RAW), "utf8").catch(() => "{}"));
 
@@ -49,13 +52,6 @@ for (const st of stopTimes) {
 }
 for (const list of timesByTrip.values()) list.sort((a, b) => a.stop_sequence - b.stop_sequence);
 
-const shapeById = new Map();
-for (const p of shapePts) {
-  if (!shapeById.has(p.shape_id)) shapeById.set(p.shape_id, []);
-  shapeById.get(p.shape_id).push(p);
-}
-for (const list of shapeById.values()) list.sort((a, b) => a.shape_pt_sequence - b.shape_pt_sequence);
-
 // --- projection: equirectangular around the network's center, in km (x east, y south)
 const parents = stops.filter((s) => s.location_type === "1");
 const lat0 = parents.reduce((a, s) => a + +s.stop_lat, 0) / parents.length;
@@ -66,21 +62,6 @@ const project = (lat, lon) => [
   round((lon - lon0) * KM_PER_DEG * Math.cos((lat0 * Math.PI) / 180)),
   round(-(lat - lat0) * KM_PER_DEG),
 ];
-
-// Douglas–Peucker, to keep shapes small. Tolerance in km.
-function simplify(pts, tol = 0.03) {
-  if (pts.length < 3) return pts;
-  const [ax, ay] = pts[0], [bx, by] = pts.at(-1);
-  const len = Math.hypot(bx - ax, by - ay) || 1;
-  let maxD = 0, idx = 0;
-  for (let i = 1; i < pts.length - 1; i++) {
-    const [px, py] = pts[i];
-    const d = Math.abs((bx - ax) * (ay - py) - (ax - px) * (by - ay)) / len;
-    if (d > maxD) { maxD = d; idx = i; }
-  }
-  if (maxD <= tol) return [pts[0], pts.at(-1)];
-  return [...simplify(pts.slice(0, idx + 1), tol).slice(0, -1), ...simplify(pts.slice(idx), tol)];
-}
 
 // --- build each line
 const stations = {};
@@ -138,8 +119,6 @@ for (const route of routes) {
     return dep >= 8 * 3600 && dep < 20 * 3600;
   }).length;
 
-  const shape = simplify((shapeById.get(rep.shape_id) ?? []).map((p) => project(+p.shape_pt_lat, +p.shape_pt_lon)));
-
   lines.push({
     id,
     name: route.route_long_name.replace(/^Metro /, ""),
@@ -149,7 +128,6 @@ for (const route of routes) {
     times,
     extraPaths,
     trainsPerHour: round(daytime / 12),
-    shape,
   });
 }
 
@@ -182,11 +160,16 @@ for (const s of Object.values(stations)) {
   s.transfer = s.lines.length > 1;
 }
 
+// --- geographic → schematic (see schematize.mjs for what the overrides do)
+const overrides = JSON.parse(await readFile(OVERRIDES, "utf8").catch(() => "{}"));
+const schematic = schematize(lines, stations, overrides);
+
 const out = {
   source: { feed: "https://gitlab.com/LACMTA/gtfs_rail", ...source, built_at: new Date().toISOString() },
   projection: { lat0: round(lat0 * 1e4) / 1e4, lon0: round(lon0 * 1e4) / 1e4, units: "km" },
-  lines,
-  stations,
+  layout: schematic.layout,
+  lines: schematic.lines,
+  stations: schematic.stations,
 };
 
 await mkdir(new URL(".", OUT), { recursive: true });
@@ -196,6 +179,9 @@ await writeFile(OUT, json + "\n");
 for (const l of lines) {
   const ends = `${stations[l.stations[0]].name} → ${stations[l.stations.at(-1)].name}`;
   for (const p of l.extraPaths) console.log(`   ${l.id} extra path: ${p.map((s) => stations[s].name).join(" → ")}`);
-  console.log(`${l.id}  ${String(l.stations.length).padStart(2)} stations  ${String(Math.round(l.times.at(-1) / 60)).padStart(3)} min  ${String(l.trainsPerHour).padStart(4)}/hr  ${String(l.shape.length).padStart(3)} pts  ${ends}`);
+  console.log(`${l.id}  ${String(l.stations.length).padStart(2)} stations  ${String(Math.round(l.times.at(-1) / 60)).padStart(3)} min  ${String(l.trainsPerHour).padStart(4)}/hr  ${ends}`);
 }
 console.log(`${Object.keys(stations).length} stations, ${Object.values(stations).filter((s) => s.transfer).length} transfers, ${(json.length / 1024).toFixed(1)} KB`);
+console.log(`layout: ${schematic.summary}`);
+for (const p of schematic.problems) console.warn(`  ! ${p}`);
+if (!schematic.problems.length) console.log("layout checks passed: every segment octilinear, every stop on its path, no stations too close");

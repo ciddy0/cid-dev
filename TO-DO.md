@@ -33,13 +33,13 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [x] Keep the JSON small: lines, ordered station ids, station names + x/y, transfer flags
 
 ## 4. Schematize (the hard/fun part)
-- [ ] Simplify each line to just its stations (drop the wiggly shape points)
-- [ ] Snap each segment to octilinear directions (0/45/90/135°), adding one bend where needed
-- [ ] Nudge stations to keep min spacing so labels don't collide
-- [ ] Offset parallel lines where they share track (A/E downtown, B/D trunk) so both colors show
-- [ ] Draw the A Line's one-way Long Beach loop (`extraPaths` in metro.json) without it looking messy
-- [ ] Allow a hand-tuned override file (`data/overrides.json`) for stations that look bad
-- [ ] Sanity check: it should still *feel* like LA — Santa Monica left, Long Beach bottom,
+- [x] Simplify each line to just its stations (drop the wiggly shape points)
+- [x] Snap each segment to octilinear directions (0/45/90/135°), adding one bend where needed
+- [x] Nudge stations to keep min spacing so labels don't collide
+- [x] Offset parallel lines where they share track (A/E downtown, B/D trunk) so both colors show
+- [x] Draw the A Line's one-way Long Beach loop (`extraPaths` in metro.json) without it looking messy
+- [x] Allow a hand-tuned override file (`data/overrides.json`) for stations that look bad
+- [x] Sanity check: it should still *feel* like LA — Santa Monica left, Long Beach bottom,
       North Hollywood top, Pomona/APU far right
 
 ## 5. Render (static first)
