@@ -45,7 +45,7 @@ function draw(map) {
   const { lane, bounds: b } = map.layout;
   const size = {
     line: lane, // lanes are one stroke apart, so shared track reads as touching ribbons
-    dot: lane, edge: lane * 0.3,
+    stop: lane * 0.27, disc: lane * 0.95, edge: lane * 0.28,
     corner: 0.5, // bend radius, in schematic units
   };
   svg.setAttribute("viewBox",
@@ -70,6 +70,7 @@ function draw(map) {
   // Tab order follows the lines, end to end.
   const order = new Set(map.lines.flatMap((l) =>
     [l, ...(l.extraPaths ?? [])].flatMap((part) => part.stations)));
+  const terminals = new Set(map.lines.flatMap((l) => [l.stations[0], l.stations.at(-1)]));
   const stations = [];
   for (const id of order) {
     const s = map.stations[id];
@@ -80,12 +81,18 @@ function draw(map) {
       class: s.transfer ? "station transfer" : "station", tabindex: 0, role: "img",
       "aria-label": `${s.name}, ${names} ${lines.length > 1 ? "lines" : "line"}`,
     }, layers.stations);
-    // Every station is the same white disc with a dark edge, twice as wide as a line.
-    // One that has to sit over more lanes than that grows just enough to cover them.
-    const span = Math.max(0, ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)));
-    const r = Math.max(size.dot, span + lane * 0.75);
-    el("circle", { cx: s.x, cy: s.y, r, "stroke-width": size.edge }, g);
-    const reach = r + size.edge / 2;
+    // Ordinary stops are small dots inside the line, so a run reads as one stroke. Transfers
+    // and line ends get the white disc with a dark edge, grown where it has to cover more lanes.
+    let reach;
+    if (s.transfer || terminals.has(id)) {
+      const span = Math.max(0, ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)));
+      const r = Math.max(size.disc, span + lane * 0.6);
+      el("circle", { class: "disc", cx: s.x, cy: s.y, r, "stroke-width": size.edge }, g);
+      reach = r + size.edge / 2;
+    } else {
+      el("circle", { cx: s.x, cy: s.y, r: size.stop }, g);
+      reach = lane / 2;
+    }
     stations.push({ id, ...s, lines, g, halo: reach + lane * 0.8 });
   }
 
