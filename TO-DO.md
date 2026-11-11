@@ -79,7 +79,7 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [ ] J busway line
 - [ ] Future extensions as faint dotted lines ("coming soon")
 - [ ] Click a line → it highlights, others fade
-- [ ] Sound: soft chime when a train arrives (off by default)
+- [x] Sound: soft chime when a train arrives (off by default)
 - [ ] Train crowding: G is still the busiest-looking line (cars cover ~51% of it). Try
       `LANE = 0.15` in `scripts/lib/schematize.mjs`, or shorter bus-sized cars for G
 - [ ] Lines get thin zoomed all the way out (~4.6px on desktop, less on a phone) — maybe a

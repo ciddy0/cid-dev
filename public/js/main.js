@@ -6,6 +6,7 @@ import { stationLabel } from "./label.js";
 import { menu } from "./menu.js";
 import { loadMap } from "./network.js";
 import { settings } from "./settings.js";
+import { arrivals } from "./sound.js";
 import { trains } from "./trains.js";
 
 settings();
@@ -14,7 +15,7 @@ try {
   const drawn = draw(map);
   const cam = camera(drawn);
   stationLabel(drawn, cam);
-  const { run } = trains(drawn, map);
+  const { run } = trains(drawn, map, { onArrive: arrivals(drawn, cam) });
   menu(drawn, cam, { onViewing: run });
 } catch (err) {
   console.error(err);

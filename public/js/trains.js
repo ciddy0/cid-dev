@@ -4,12 +4,13 @@ import { round } from "./math.js";
 import { lineColor } from "./network.js";
 import { prefs } from "./prefs.js";
 import { rail } from "./rail.js";
+import { drone } from "./sound.js";
 import { SEATS, runs, scheduled } from "./timetable.js";
 
 // Returns { show, run }: `show(states)` draws one answer from a feed, and `run(on)` starts or
 // stops the cars following the timetable. With motion off they are put where they are right now
-// and left standing.
-export function trains({ tracks, layers, lane }, map) {
+// and left standing. `onArrive(line, id)` is called as a train of `line` pulls into station `id`.
+export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = {}) {
   const long = lane * 3.2,
     wide = lane * 1.9;
   const rails = new Map(tracks.map((track) => [track, rail(track, layers.trains)]));
@@ -63,6 +64,10 @@ export function trains({ tracks, layers, lane }, map) {
       if (!cars.has(state.id)) cars.set(state.id, car(hop));
       const it = cars.get(state.id);
       seat(it, state.load);
+      // Standing at one end of its hop or the other, where a moment ago it was moving.
+      const at = state.progress >= 1 ? state.to : state.progress <= 0 ? state.from : null;
+      if (at && it.moving) onArrive(hop.line, at);
+      it.moving = !at;
       let d = state.progress * hop.legs.reduce((sum, [, a, b]) => sum + Math.abs(b - a), 0);
       const [track, a, b] =
         hop.legs.find(([, a, b], k) => {
@@ -91,12 +96,15 @@ export function trains({ tracks, layers, lane }, map) {
   const feed = scheduled(routes);
   let frame = 0;
   const tick = () => {
-    show(feed(Date.now() / 1000));
+    const states = feed(Date.now() / 1000);
+    show(states);
+    drone(states.filter((s) => s.progress % 1).length / states.length);
     frame = prefs.motion ? requestAnimationFrame(tick) : 0;
   };
   function run(on) {
     cancelAnimationFrame(frame);
     frame = on ? requestAnimationFrame(tick) : 0;
+    if (!on) drone(null);
   }
   return { show, run };
 }

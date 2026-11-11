@@ -21,8 +21,8 @@ const SWELL_MS = 220; // the picked item swells for this long before the camera 
 const INTRO_MS = 1400; // the opening move from the whole map in to the menu
 const INTRO_HOLD_MS = 700; // and how long the whole map shows before it
 
-const CHIME_GO = 660; // Hz
-const CHIME_HOME = 440;
+const CHIME_GO = [65, 72]; // MIDI notes: F4 up to C5
+const CHIME_HOME = [72, 65];
 
 // `onViewing(on)` is called as the view screen is entered and left.
 export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } = {}) {
@@ -114,7 +114,7 @@ export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } =
     place(id, 0);
     nav.classList.add("choosing");
     item(id).classList.add("picked");
-    chime(CHIME_GO);
+    chime(...CHIME_GO);
     const leave = () => {
       viewing(id === "view");
       cam.glide(spot(id), ms(), (e) => place(id, e), () => {
@@ -140,7 +140,7 @@ export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } =
     main.inert = true;
     nav.hidden = false;
     viewing(false);
-    chime(CHIME_HOME);
+    chime(...CHIME_HOME);
     cam.glide(spot(), ms(), (e) => place(id, 1 - e), () => {
       busy = false;
       back.hidden = true;

@@ -9,7 +9,7 @@ export function settings() {
     sw.addEventListener("click", () => {
       setPref(key, !prefs[key]);
       sync();
-      chime(prefs[key] ? 880 : 440);
+      chime(...(prefs[key] ? [74, 81] : [74, 69])); // D5 up to A5, or down to A4
     });
     sync();
   }

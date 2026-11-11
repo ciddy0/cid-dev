@@ -49,7 +49,8 @@ them up in this order:
 | `trains.js` | puts a car wherever a feed says a train is, riding the tracks (`rail.js`) |
 | `timetable.js` | the feed: where every train is, worked out from the timetable |
 | `menu.js` | the menu and the screens it flies to; starts and stops the trains |
-| `settings.js`, `prefs.js`, `sound.js` | the motion and sound switches, stored in `localStorage` |
+| `settings.js`, `prefs.js` | the motion and sound switches, stored in `localStorage` |
+| `sound.js` | the synthesized piano: a note as a train arrives on screen, menu figures, the hum |
 | `geometry.js`, `math.js`, `dom.js` | bends and arcs, small numeric helpers, the SVG element helper |
 
 `geometry.js`, `termini.js`, `timetable.js` and `math.js` never touch the page, which is what
