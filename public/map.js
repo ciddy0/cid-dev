@@ -1,6 +1,7 @@
 // Draws the schematic LA Metro map from data/metro.json as an SVG, plus the station name
 // label on hover / tap / focus. Static for now: each line is one <path> (so it can be drawn in
-// and ridden with getPointAtLength later) and trains get their own empty layer.
+// and ridden with getPointAtLength later, its terminus Ts drawn separately on top) and
+// trains get their own empty layer.
 const NS = "http://www.w3.org/2000/svg";
 const PAD = 1.5; // schematic units around the bounds, room for strokes and markers
 
@@ -42,39 +43,58 @@ function toD(pts, r = 0) {
   return d;
 }
 
-// Extends a polyline at both ends and returns the T-bar crossbar segments
-function withTerminus(pts, stemLen, barHalfWidth) {
-  if (pts.length < 2) return { extended: pts, bars: "" };
-  const copy = pts.map((p) => [...p]);
-  const n = (v) => +v.toFixed(3);
-  let bars = "";
+// How far rounding pulls the line off the corner at pts[i]: the curve's midpoint, relative to
+// the corner. A station on a bend has to move by this much to stay on its line.
+function bendShift(pts, i, r) {
+  const prev = pts[i - 1],
+    next = pts[i + 1];
+  if (!prev || !next || !r) return [0, 0];
+  const [x, y] = pts[i];
+  const inLen = Math.hypot(x - prev[0], y - prev[1]),
+    outLen = Math.hypot(next[0] - x, next[1] - y);
+  const cut = Math.min(r, inLen / 2, outLen / 2) / 4;
+  return [
+    ((prev[0] - x) / inLen + (next[0] - x) / outLen) * cut,
+    ((prev[1] - y) / inLen + (next[1] - y) / outLen) * cut,
+  ];
+}
 
-  // Helper to extend an endpoint and build the perpendicular crossbar
-  const cap = (tipIdx, prevIdx) => {
-    const [x, y] = copy[tipIdx];
-    const [px, py] = copy[prevIdx];
-    const len = Math.hypot(x - px, y - py);
-    if (!len) return;
-    const dx = (x - px) / len,
-      dy = (y - py) / len;
-    const nx = -dy,
-      ny = dx;
-
-    // Move the endpoint outward past the station circle
-    const tx = x + dx * stemLen,
-      ty = y + dy * stemLen;
-    copy[tipIdx] = [tx, ty];
-
-    // Draw perpendicular crossbar at the new tip
-    bars +=
-      `M${n(tx - nx * barHalfWidth)} ${n(ty - ny * barHalfWidth)}` +
-      `L${n(tx + nx * barHalfWidth)} ${n(ty + ny * barHalfWidth)}`;
+// Shortest distance between two segments, each [[x, y], [x, y]]; 0 if they cross.
+function segDist([p, q], [r, s]) {
+  const cross = (o, a, b) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  if (
+    cross(p, q, r) * cross(p, q, s) < 0 &&
+    cross(r, s, p) * cross(r, s, q) < 0
+  )
+    return 0;
+  const toSeg = (pt, a, b) => {
+    const vx = b[0] - a[0],
+      vy = b[1] - a[1];
+    const len2 = vx * vx + vy * vy;
+    const t = len2
+      ? Math.max(
+          0,
+          Math.min(1, ((pt[0] - a[0]) * vx + (pt[1] - a[1]) * vy) / len2),
+        )
+      : 0;
+    return Math.hypot(pt[0] - a[0] - t * vx, pt[1] - a[1] - t * vy);
   };
+  return Math.min(
+    toSeg(p, r, s),
+    toSeg(q, r, s),
+    toSeg(r, p, q),
+    toSeg(s, p, q),
+  );
+}
 
-  cap(0, 1); // Start terminus
-  cap(copy.length - 1, copy.length - 2); // End terminus
-
-  return { extended: copy, bars };
+// Both ends of a polyline: the terminal point and the unit direction the line arrives in.
+function lineEnds(pts) {
+  const end = ([x, y], [px, py]) => {
+    const len = Math.hypot(x - px, y - py);
+    return { x, y, dx: (x - px) / len, dy: (y - py) / len };
+  };
+  return pts.length < 2 ? [] : [end(pts[0], pts[1]), end(pts.at(-1), pts.at(-2))];
 }
 
 async function loadMap() {
@@ -112,25 +132,19 @@ function draw(map) {
   layers.trains.setAttribute("aria-hidden", "true");
 
   const lineById = new Map(map.lines.map((l) => [l.id, l]));
+  const ends = [];
+  const tracks = []; // every drawn polyline, for keeping the T-bars off other lines
+  const nudges = new Map(); // station id → bend shifts of the lines through it
   for (const line of map.lines) {
     for (const [i, part] of [line, ...(line.extraPaths ?? [])].entries()) {
-      let d;
-      if (i === 0) {
-        // Main line: extend 0.65 units past terminal stations, crossbar 0.42 units each side
-        const { extended, bars } = withTerminus(
-          part.path,
-          lane * 2.2,
-          lane * 1.4,
-        );
-        d = toD(extended, size.corner) + bars;
-      } else {
-        d = toD(part.path, size.corner);
-      }
+      const pts = part.path;
+      tracks.push({ line, pts });
+      if (i === 0) ends.push(...lineEnds(pts).map((end) => ({ ...end, line })));
       const path = el(
         "path",
         {
           class: "line",
-          d,
+          d: toD(pts, size.corner),
           "stroke-width": size.line,
           "data-line": line.id,
           ...(i && { "data-extra": i }),
@@ -138,7 +152,85 @@ function draw(map) {
         layers.lines,
       );
       path.style.stroke = lineColor(line);
+
+      part.stations.forEach((id, k) => {
+        const [sx, sy] = part.stops[k];
+        const j = pts.findIndex(([x, y]) => Math.hypot(x - sx, y - sy) < 1e-6);
+        if (!nudges.has(id)) nudges.set(id, []);
+        nudges.get(id).push(bendShift(pts, j, size.corner));
+      });
     }
+  }
+
+  // Each line ends in a T: a stem out of the last station and a crossbar. The stem carries
+  // straight on unless that would run the T into another line or another T, in which case it
+  // swings round in 45° steps to the nearest heading that is clear. Lines that end side by side
+  // at one station share a T instead, each bar stopping halfway to its neighbour.
+  const n = (v) => +v.toFixed(3);
+  const stem = lane * 2.2,
+    bar = lane * 1.4,
+    skip = lane * 1.5; // the stem's first stretch sits under the station, where lines do meet
+  const tee = (e, turn, reach = [bar, bar]) => {
+    const cos = Math.cos((turn * Math.PI) / 4),
+      sin = Math.sin((turn * Math.PI) / 4);
+    const dx = e.dx * cos - e.dy * sin,
+      dy = e.dx * sin + e.dy * cos;
+    const tip = [e.x + dx * stem, e.y + dy * stem];
+    const cross = [
+      [tip[0] + dy * reach[0], tip[1] - dx * reach[0]],
+      [tip[0] - dy * reach[1], tip[1] + dx * reach[1]],
+    ];
+    return {
+      segs: [[[e.x + dx * skip, e.y + dy * skip], tip], cross],
+      d:
+        `M${n(e.x)} ${n(e.y)}L${n(tip[0])} ${n(tip[1])}` +
+        `M${n(cross[0][0])} ${n(cross[0][1])}L${n(cross[1][0])} ${n(cross[1][1])}`,
+    };
+  };
+  const placed = [];
+  for (const e of ends) {
+    const reach = [bar, bar];
+    for (const o of ends) {
+      const across = (o.y - e.y) * e.dx - (o.x - e.x) * e.dy,
+        along = (o.x - e.x) * e.dx + (o.y - e.y) * e.dy;
+      if (o.line === e.line || o.dx * e.dx + o.dy * e.dy < 0.99) continue;
+      if (Math.abs(along) > lane / 2 || Math.abs(across) >= 2 * bar) continue;
+      const side = across < 0 ? 0 : 1;
+      reach[side] = Math.min(reach[side], Math.abs(across) / 2);
+    }
+    const shared = reach.some((v) => v < bar);
+
+    // In the way: other lines, the straight-on stems of their ends, and the Ts already drawn.
+    const blocks = [
+      ...tracks
+        .filter((t) => t.line !== e.line)
+        .flatMap((t) => t.pts.slice(1).map((pt, i) => [t.pts[i], pt])),
+      ...ends
+        .filter((o) => o.line !== e.line)
+        .map((o) => [
+          [o.x, o.y],
+          [o.x + o.dx * stem, o.y + o.dy * stem],
+        ]),
+      ...placed,
+    ];
+    const clear = (t) =>
+      t.segs.every((a) => blocks.every((b) => segDist(a, b) > lane - 1e-6));
+    const t =
+      (!shared &&
+        [0, 1, -1, 2, -2, 3, -3].map((turn) => tee(e, turn)).find(clear)) ||
+      tee(e, 0, reach);
+    placed.push(...t.segs);
+    const path = el(
+      "path",
+      {
+        class: "line terminus",
+        d: t.d,
+        "stroke-width": size.line,
+        "data-line": e.line.id,
+      },
+      layers.lines,
+    );
+    path.style.stroke = lineColor(e.line);
   }
 
   // Tab order follows the lines, end to end.
@@ -170,9 +262,15 @@ function draw(map) {
       ...(s.marker ?? []).map(([x, y]) => Math.hypot(x - s.x, y - s.y)),
     );
     const r = Math.max(size.dot, span + lane * 0.6);
-    el("circle", { cx: s.x, cy: s.y, r, "stroke-width": size.edge }, g);
+    // A single-lane station on a bend follows the rounded corner, averaged over its lines.
+    const shifts = s.marker ? [] : nudges.get(id);
+    const mean = (k) =>
+      shifts.reduce((sum, v) => sum + v[k], 0) / (shifts.length || 1);
+    const x = +(s.x + mean(0)).toFixed(3),
+      y = +(s.y + mean(1)).toFixed(3);
+    el("circle", { cx: x, cy: y, r, "stroke-width": size.edge }, g);
     const reach = r + size.edge / 2;
-    stations.push({ id, ...s, lines, g, halo: reach + lane * 0.8 });
+    stations.push({ id, ...s, x, y, lines, g, halo: reach + lane * 0.8 });
   }
 
   const halo = el(
