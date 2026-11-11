@@ -48,6 +48,8 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [x] Stations: white circles with colored outline; transfers as bigger white circles / pills
 - [x] Fit to viewport with padding, works on phone portrait and desktop landscape
 - [x] Hover/tap a station → name label (no permanent label clutter)
+- [x] Camera: drag / pinch / wheel to pan and zoom; small screens open on the whole map, then
+      close in on downtown at a readable size
 
 ## 6. Animate
 - [ ] Intro: lines draw in one at a time (`stroke-dashoffset`), stations pop in after

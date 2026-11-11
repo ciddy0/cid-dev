@@ -1,9 +1,11 @@
 // Draws the schematic LA Metro map from data/metro.json as an SVG, plus the station name
-// label on hover / tap / focus. Static for now: each line is one <path> (so it can be drawn in
+// label on hover / tap / focus and a drag / pinch / wheel camera. Static for now: each line is one <path> (so it can be drawn in
 // and ridden with getPointAtLength later, its terminus Ts drawn separately on top) and
 // trains get their own empty layer.
 const NS = "http://www.w3.org/2000/svg";
 const PAD = 0.7; // schematic units of clear space around everything drawn
+const COMFY = 22; // px per schematic unit at which lines and stations are easy to read and tap
+const MAX_ZOOM = 64; // px per schematic unit
 
 const svg = document.getElementById("map");
 const label = document.getElementById("label");
@@ -114,8 +116,8 @@ function draw(map) {
   };
   svg.replaceChildren();
 
-  // The view is fitted to what actually gets drawn (strokes, Ts and discs included), so the map
-  // sits dead centre whichever way its outermost lines happen to end.
+  // The camera is bounded by what actually gets drawn (strokes, Ts and discs included), so the
+  // map sits dead centre whichever way its outermost lines happen to end.
   const ink = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   const cover = (x, y, r = 0) => {
     ink.minX = Math.min(ink.minX, x - r);
@@ -280,28 +282,204 @@ function draw(map) {
     stations.push({ id, ...s, x, y, lines, g, halo: reach + lane * 0.8 });
   }
 
-  svg.setAttribute(
-    "viewBox",
-    [
-      ink.minX - PAD,
-      ink.minY - PAD,
-      ink.maxX - ink.minX + 2 * PAD,
-      ink.maxY - ink.minY + 2 * PAD,
-    ]
-      .map((v) => +v.toFixed(3))
-      .join(" "),
-  );
+  const box = {
+    x: ink.minX - PAD,
+    y: ink.minY - PAD,
+    w: ink.maxX - ink.minX + 2 * PAD,
+    h: ink.maxY - ink.minY + 2 * PAD,
+  };
+  // Where a zoomed-in view opens: the station the most lines meet at.
+  const hub = stations.reduce((a, b) => (b.lines.length > a.lines.length ? b : a));
 
   const halo = el(
     "circle",
     { id: "halo", "stroke-width": lane * 0.3 },
     layers.overlay,
   );
-  return { stations, halo, lane };
+  return { stations, halo, lane, box, hub };
+}
+
+// --- camera: the viewBox, driven by drag, pinch and wheel. A screen with room for the whole map
+// at a readable size just shows it. A smaller one (a phone, mostly) shows the whole map for a
+// moment, then closes in on the hub until the map fills the screen's long side, and the rest is
+// a drag away.
+function camera({ box, hub }) {
+  const view = { x: 0, y: 0, k: 1 }; // centre in schematic units, k = px per unit
+  const cam = { dragging: false, onMove() {}, onTap() {} };
+  const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+  let rect, fit, anim, touched = false;
+
+  function apply() {
+    view.k = clamp(view.k, fit, Math.max(MAX_ZOOM, fit));
+    const w = rect.width / view.k,
+      h = rect.height / view.k;
+    // An axis the map fits along stays centred; the other stops at the map's edge.
+    const hold = (c, lo, size, span) =>
+      span >= size ? lo + size / 2 : clamp(c, lo + span / 2, lo + size - span / 2);
+    view.x = hold(view.x, box.x, box.w, w);
+    view.y = hold(view.y, box.y, box.h, h);
+    svg.setAttribute(
+      "viewBox",
+      [view.x - w / 2, view.y - h / 2, w, h].map((v) => +v.toFixed(3)).join(" "),
+    );
+    svg.classList.toggle("loose", view.k > fit * 1.001);
+    cam.onMove();
+  }
+
+  const whole = () => ({ x: box.x + box.w / 2, y: box.y + box.h / 2, k: fit });
+  function home() {
+    const cover = Math.max(rect.width / box.w, rect.height / box.h);
+    const k = Math.min(cover, Math.max(fit, COMFY));
+    return k > fit * 1.05 ? { x: hub.x, y: hub.y, k } : whole();
+  }
+
+  function stop() {
+    cancelAnimationFrame(anim);
+    clearTimeout(anim);
+  }
+  function glide(to, ms) {
+    const from = { ...view },
+      t0 = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / ms),
+        e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+      view.k = from.k * (to.k / from.k) ** e;
+      view.x = from.x + (to.x - from.x) * e;
+      view.y = from.y + (to.y - from.y) * e;
+      apply();
+      if (t < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+
+  function measure() {
+    rect = svg.getBoundingClientRect();
+    fit = Math.min(rect.width / box.w, rect.height / box.h);
+  }
+  function resize() {
+    measure();
+    if (!touched) {
+      stop();
+      Object.assign(view, home());
+    }
+    apply();
+  }
+
+  const pan = (dx, dy) => {
+    view.x -= dx / view.k;
+    view.y -= dy / view.k;
+  };
+  // Zoom by `factor`, keeping whatever is under the screen point (px, py) where it is.
+  function zoom(px, py, factor) {
+    const ox = px - rect.left - rect.width / 2,
+      oy = py - rect.top - rect.height / 2;
+    const k = clamp(view.k * factor, fit, Math.max(MAX_ZOOM, fit));
+    view.x += ox / view.k - ox / k;
+    view.y += oy / view.k - oy / k;
+    view.k = k;
+  }
+
+  const fingers = new Map(); // pointer id → last clientX / clientY
+  let travel = 0, // px moved since the first finger went down; a tap stays under a few
+    last = 0,
+    vx = 0,
+    vy = 0; // px per ms, smoothed, for the fling after a drag
+  const centre = () => {
+    const pts = [...fingers.values()];
+    return {
+      x: pts.reduce((sum, p) => sum + p.x, 0) / pts.length,
+      y: pts.reduce((sum, p) => sum + p.y, 0) / pts.length,
+      spread: pts.length > 1 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0,
+    };
+  };
+
+  svg.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    stop();
+    touched = true;
+    if (!fingers.size) travel = vx = vy = 0;
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener("pointermove", (e) => {
+    if (!fingers.has(e.pointerId)) return;
+    const was = centre();
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const now = centre();
+    const dx = now.x - was.x,
+      dy = now.y - was.y;
+    travel += Math.hypot(dx, dy) + Math.abs(now.spread - was.spread);
+    if (travel < 6) return;
+    cam.dragging = true;
+    svg.classList.add("dragging");
+    const dt = Math.max(1, e.timeStamp - last);
+    last = e.timeStamp;
+    vx = vx * 0.6 + (dx / dt) * 0.4;
+    vy = vy * 0.6 + (dy / dt) * 0.4;
+    pan(dx, dy);
+    if (was.spread && now.spread) zoom(now.x, now.y, now.spread / was.spread);
+    apply();
+  });
+  const lift = (e) => {
+    if (!fingers.delete(e.pointerId) || fingers.size) return;
+    const tap = !cam.dragging && e.type === "pointerup";
+    cam.dragging = false;
+    svg.classList.remove("dragging");
+    if (tap) return cam.onTap(e);
+    if (calm || e.timeStamp - last > 80 || Math.hypot(vx, vy) < 0.1) return;
+    // Fling: carry on at the speed the finger left with, slowing to a stop.
+    let then = performance.now();
+    const coast = (now) => {
+      const dt = Math.min(now - then, 50);
+      then = now;
+      pan(vx * dt, vy * dt);
+      vx *= 0.995 ** dt;
+      vy *= 0.995 ** dt;
+      apply();
+      if (Math.hypot(vx, vy) > 0.02) anim = requestAnimationFrame(coast);
+    };
+    anim = requestAnimationFrame(coast);
+  };
+  svg.addEventListener("pointerup", lift);
+  svg.addEventListener("pointercancel", lift);
+  svg.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      stop();
+      touched = true;
+      // A trackpad pinch arrives as a ctrl+wheel with small deltas.
+      zoom(e.clientX, e.clientY, Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+      apply();
+    },
+    { passive: false },
+  );
+  addEventListener("resize", resize);
+
+  cam.sees = (s) =>
+    Math.abs(s.x - view.x) * view.k <= rect.width / 2 &&
+    Math.abs(s.y - view.y) * view.k <= rect.height / 2;
+  // Bring a station into view, for keyboard focus landing on one that is off screen.
+  cam.reveal = (s) => {
+    if (cam.sees(s)) return;
+    stop();
+    touched = true;
+    view.x = s.x;
+    view.y = s.y;
+    apply();
+  };
+
+  measure();
+  const to = home();
+  Object.assign(view, calm ? to : whole());
+  apply();
+  if (!calm && to.k > fit) anim = setTimeout(() => glide(to, 1400), 700);
+  return cam;
 }
 
 // --- label: one floating chip row + name, shared by hover, tap and keyboard focus
-function interact({ stations, halo, lane }) {
+function interact({ stations, halo, lane }, cam) {
   let active = null;
 
   const toScreen = (s) => {
@@ -375,32 +553,43 @@ function interact({ stations, halo, lane }) {
   }
 
   addEventListener("pointermove", (e) => {
-    if (e.pointerType !== "mouse") return;
+    if (e.pointerType !== "mouse" || cam.dragging) return;
     const s = nearest(e, 12);
     if (s) show(s);
     else hide();
   });
-  addEventListener("pointerdown", (e) => {
+  cam.onTap = (e) => {
     if (e.pointerType === "mouse") return;
     const s = nearest(e, 24);
     if (s) show(s);
     else hide();
+  };
+  // The label rides along with its station, and goes when the station leaves the screen.
+  cam.onMove = () => {
+    if (active && !cam.sees(active)) hide();
+    else place();
+  };
+  // Mouse only: a finger lifting off also "leaves", right after the tap that showed the label.
+  document.documentElement.addEventListener("pointerleave", (e) => {
+    if (e.pointerType === "mouse") hide();
   });
-  document.documentElement.addEventListener("pointerleave", hide);
   addEventListener("keydown", (e) => {
     if (e.key === "Escape") hide();
   });
   for (const s of stations) {
-    s.g.addEventListener("focus", () => show(s));
+    s.g.addEventListener("focus", () => {
+      cam.reveal(s);
+      show(s);
+    });
     s.g.addEventListener("blur", () => {
       if (active === s) hide();
     });
   }
-  addEventListener("resize", place);
 }
 
 try {
-  interact(draw(await loadMap()));
+  const drawn = draw(await loadMap());
+  interact(drawn, camera(drawn));
 } catch (err) {
   console.error(err);
   status.textContent = "The map couldn't be loaded. Try refreshing.";
