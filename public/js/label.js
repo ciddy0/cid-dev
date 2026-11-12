@@ -87,8 +87,11 @@ export function stationLabel({ stations, halo, lane }, cam) {
     else hide();
   };
 
+  // Only over the map itself: under the back arrow, a station keeps quiet.
   addEventListener("pointermove", (e) => {
-    if (e.pointerType === "mouse" && !cam.dragging && cam.roam) pick(e, HOVER_REACH);
+    if (e.pointerType !== "mouse" || cam.dragging || !cam.roam) return;
+    if (svg.contains(e.target)) pick(e, HOVER_REACH);
+    else hide();
   });
   cam.onTap = (e) => {
     if (e.pointerType !== "mouse") pick(e, TAP_REACH);

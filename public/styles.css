@@ -272,6 +272,14 @@ button:focus-visible {
   height: 48px;
   font-size: 32px;
   filter: drop-shadow(0 0 3px var(--bg));
+  transition: transform 0.12s;
+}
+#back:hover {
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 3px var(--bg)) brightness(1.12);
+}
+#back:active {
+  transform: scale(0.95);
 }
 
 .screen {
