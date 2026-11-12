@@ -141,3 +141,32 @@ with a catch-up: the last 30 minutes in 6 s, easing out into now.
 - [ ] On-screen zoom +/− buttons, for desktop visitors with no wheel or trackpad
 - [ ] Tune the view's opening crop (`LINE_VIEW` in `public/js/menu.js`): on desktop the G Line sits right
       on the top edge of the window
+
+## From the code review (unverified, 2026-11-12)
+Live map — a visitor could see these:
+- [ ] Stalled feed never redialled (`connect()` in `worker/index.js`): a Metro socket that goes
+      quiet but stays open counts as healthy while anyone is watching. Needs a per-feed
+      staleness check
+- [ ] Stale trains shown as live (`settle()` in `public/js/live.js`): the record's last frame
+      goes through `take()`, which stamps `heard = now`, so trains up to 3 min old pass as
+      fresh for another 2 min before the timetable takes over
+
+Build scripts — only when the data is refreshed:
+- [ ] `extract()` in `scripts/fetch-gtfs.mjs` never checks `unzip`'s exit status: a bad
+      download writes empty bus tables and the build drops the G Line without a word
+- [ ] `head()` in `scripts/fetch-gtfs.mjs` doesn't check `res.ok`, and runs after the raw data
+      is already overwritten, so `_source.json` can name the wrong commit
+- [ ] `longest(dir)` and `busiest` in `scripts/lib/network.mjs` call `reduce` with no initial
+      value: a route with trips in one direction only crashes the build without naming it
+- [ ] The `extraPaths` scan in `scripts/lib/network.mjs` starts at `i = 1` and can run off the
+      end of `back`: stations only the way back serves, at either terminus, are dropped
+
+Latent or minor:
+- [ ] `snapshot()` in `worker/index.js` compares `now - this.woke >= WARM` right after a
+      `setTimeout(WARM)`: a timer a millisecond early loses that minute's record frame
+- [ ] `moved` in `public/js/timetable.js` divides by `hop.arr - hop.dep - DWELL`: a hop of 20s
+      or less gives NaN and kills the animation loop (shortest hop today is 60s)
+- [ ] `drone()` in `public/js/trains.js` schedules two `setTargetAtTime` per animation frame.
+      Throttle it to when `share` really changes
+- [ ] `seat()` in `public/js/menu.js` reruns its brute-force search on every resize event, so
+      the menu janks while a window edge is dragged. Debounce it
