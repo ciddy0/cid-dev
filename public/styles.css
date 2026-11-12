@@ -15,6 +15,7 @@
   --label-edge: rgba(247, 245, 239, 0.14);
   --label-ink: #f7f5ef;
   --muted: #6d7380;
+  --ocean: #121b26;
   --font:
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
@@ -29,6 +30,7 @@
   --label-edge: rgba(35, 38, 45, 0.14);
   --label-ink: #23262d;
   --muted: #7b808a;
+  --ocean: #d5e3ec;
 }
 /* Colorblind mode: the Okabe–Ito palette, which keeps apart under every common kind of
    colour blindness. */
@@ -86,6 +88,15 @@ main {
 }
 #map.hot {
   cursor: pointer;
+}
+
+/* The ocean, under everything. Settings can turn it off (`.bare`). */
+#coast {
+  fill: var(--ocean);
+  transition: opacity 0.5s;
+}
+.bare #coast {
+  opacity: 0;
 }
 
 .line {
