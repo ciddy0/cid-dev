@@ -5,9 +5,9 @@ const TEXT = {
     map: "Schematic map of the LA Metro rail network",
     menu: "Menu",
     back: "Back to the menu",
-    view: "View",
+    view: "Map",
     resume: "Resume",
-    docs: "Docs",
+    docs: "About",
     settings: "Settings",
     jobs: {
       csulb: {
@@ -39,7 +39,7 @@ const TEXT = {
       <p>A map of the LA Metro rail network, with the trains where Metro says they are right
         now. Mostly I just wanted something nice to look at.</p>
       <h2>Getting Around</h2>
-      <p><b>View</b> opens the map and the trains.</p>
+      <p><b>Map</b> opens the map and the trains.</p>
       <p><b>Drag</b> to move, <b>pinch or scroll</b> to zoom.</p>
       <p><b>Tap or hover</b> a station for its name and lines.</p>
       <p><b>Tab</b> steps through the stations.</p>
@@ -92,9 +92,9 @@ const TEXT = {
     map: "Mapa esquemático de la red de trenes de LA Metro",
     menu: "Menú",
     back: "Volver al menú",
-    view: "Ver",
+    view: "Mapa",
     resume: "Currículum",
-    docs: "Guía",
+    docs: "Acerca de",
     settings: "Configuración",
     jobs: {
       csulb: {
@@ -127,7 +127,7 @@ const TEXT = {
       <p>Un mapa de la red de trenes de LA Metro, con los trenes donde Metro dice que están
         ahorita. Más que nada quería algo bonito para ver.</p>
       <h2>Cómo moverte</h2>
-      <p><b>Ver</b> abre el mapa y los trenes.</p>
+      <p><b>Mapa</b> abre el mapa y los trenes.</p>
       <p><b>Arrastra</b> para moverte, <b>pellizca o desplaza</b> para acercar o alejar.</p>
       <p><b>Toca una estación o pasa el cursor</b> sobre ella para ver su nombre y sus
         líneas.</p>

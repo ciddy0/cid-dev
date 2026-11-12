@@ -56,7 +56,7 @@ them up, roughly in this order:
 | `trains.js` | puts a car wherever a feed says a train is, riding the tracks (`rail.js`) |
 | `live.js` | the live feed: the last half hour run through in a few seconds as the view opens, then the socket to `/live`, cars eased from one snapshot to the next |
 | `timetable.js` | the fallback feed: where every train is, worked out from the timetable |
-| `menu.js` | the menu and the screens it flies to (view, resume, docs, settings); starts and stops the trains |
+| `menu.js` | the menu and the screens it flies to (map, resume, about, settings); starts and stops the trains |
 | `intro.js` | the lines drawing themselves in as the page opens |
 | `resume.js` | the resume screen: the jobs as stops along a line, the picked one a card on it with a little map of where the job was |
 | `settings.js`, `prefs.js` | the settings (language, night mode, colorblind mode, coastline, motion, sound, volume), stored in `localStorage` |
