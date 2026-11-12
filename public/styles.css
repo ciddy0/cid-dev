@@ -212,7 +212,9 @@ button:focus-visible {
 [hidden] {
   display: none !important;
 }
-.calm * {
+.calm *,
+.calm ::before,
+.calm ::after {
   transition: none !important;
   animation: none !important;
 }
@@ -276,114 +278,181 @@ button:focus-visible {
   padding: calc(68px + env(safe-area-inset-top)) 16px
     calc(16px + env(safe-area-inset-bottom));
 }
-/* The resume: the jobs as stops along a line across the screen, oldest on the left. The picked
-   one is a card on the line, the others wait faded either side, and the strip slides to centre
-   the picked one (resume.js). Every job has the same padding and a one-line name, so the line
-   runs through them all at the same height: the card grows down from it, never up. */
+/* The resume: the jobs along a line across the screen, oldest on the left. A card sits
+   still on the middle of the line and the strip of jobs slides over it (resume.js): the job
+   over the card is the picked one and fills it, the others wait faded either side. Every job
+   is as wide as the card and a step from the next, so the picked one lies right on the card,
+   and its name is where it was all along: only the strip moves a name. */
 #resume {
   place-items: stretch;
   padding-inline: 0;
 }
 .jobs {
-  --s: min(22em, 100vw - 5em); /* the picked card's width */
-  --n: 12.5em; /* every other job's */
-  --gap: 2.5em;
-  --pad: 1.1em; /* a job's padding above its name */
-  --row: 2.2em; /* the row the line runs through */
+  --s: min(22em, 100vw - 5em); /* the card's width */
+  --gap: 2.5em; /* between the card and the jobs waiting either side */
+  --step: calc(var(--s) + var(--gap)); /* from one job to the next */
+  --pad: 1.1em; /* the card's padding above a name */
+  --side: 1.3em; /* and either side, and under its last line */
+  --name: 2.4em; /* a name's row */
+  --row: 2.2em; /* the row the line runs through, under the names */
   --band: 0.8em; /* how thick the line is */
-  --top: max(0px, 30vh - 9em);
-  --mid: calc(var(--top) + var(--pad) + 2.4em + var(--row) / 2); /* the line, down from the top */
-  position: relative;
+  --pic: calc((var(--s) - 2 * var(--side)) / 2); /* how tall a job's picture is, half its width */
+  --words: 18.5em; /* the room for a job's words under it, the same for every job */
+  display: grid;
+  grid-template-columns: 100%;
+  align-content: start;
   min-height: 0;
   overflow: hidden auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
-  padding: var(--top) 0 1.5em;
+  padding: max(0px, 30vh - 9em) 0 1.5em;
   font-size: 15px;
   line-height: 1.45;
   touch-action: pan-y;
   pointer-events: auto;
 }
+/* The line, the card on it and the jobs over both. */
+.jobs::before,
+.jobs::after,
 .strip {
-  position: relative;
+  grid-area: 1 / 1;
+}
+.jobs::before {
+  content: "";
+  align-self: start;
+  height: var(--band);
+  margin-top: calc(var(--pad) + var(--name) + (var(--row) - var(--band)) / 2);
+  background: var(--line-d);
+  box-shadow: 0 0 0 0.3em var(--bg); /* a gap either side, where it crosses the map's lines */
+}
+/* Every job gets the same card: a name, a picture, and the same room for its words. */
+.jobs::after {
+  content: "";
+  place-self: start center;
+  width: var(--s);
+  height: calc(var(--pad) + var(--name) + var(--row) + var(--pic) + var(--words) + var(--side));
+  background: var(--label-bg);
+}
+.strip {
+  z-index: 1;
   display: flex;
-  align-items: flex-start;
-  gap: var(--gap);
   width: max-content;
   margin-left: 50%;
-  translate: calc(
-    var(--drag, 0px) - var(--at, 0) * (var(--n) + var(--gap)) - var(--s) / 2
-  );
-  transition: translate 0.45s cubic-bezier(0.33, 1, 0.68, 1);
+  overflow-y: clip;
+  translate: calc(var(--drag, 0px) - (var(--at, 0) + 0.5) * var(--step));
+  transition: translate 0.35s ease-out;
 }
 .strip.dragging {
   transition: none;
   user-select: none;
 }
-.strip::before {
-  content: "";
-  position: absolute;
-  left: -100vw;
-  right: -100vw;
-  top: calc(var(--mid) - var(--top) - var(--band) / 2);
-  height: var(--band);
-  background: var(--line-d);
-  box-shadow: 0 0 0 0.3em var(--bg); /* a gap either side, where it crosses the map's lines */
-}
+/* A job is its name over the line and its picture under it, which show wherever it is along
+   the strip, and its words (.full), which only show on the card. Only what shows of it can be
+   tapped. */
 .job {
-  position: relative;
   flex: none;
-  width: var(--n);
-  padding: var(--pad) 1.3em 1.3em;
-  border-radius: 16px;
+  position: relative;
+  width: var(--s);
+  margin-inline: calc(var(--gap) / 2);
+  padding: var(--pad) var(--side) 0;
+  pointer-events: none;
+}
+/* A job leaving the card shuts at once, before the strip has taken it far. */
+.job h2,
+.pic,
+.full {
+  pointer-events: auto;
+  transition: 0.07s;
+  transition-property: opacity, visibility, color, text-shadow, background-color;
+}
+.job h2,
+.pic {
+  cursor: pointer;
+}
+.job h2 {
+  display: flex;
+  width: fit-content;
+  height: var(--name);
+  margin: 0;
+  font-size: 1em;
   color: var(--muted);
   text-shadow:
     0 0 3px var(--bg),
     0 0 8px var(--bg),
     0 0 14px var(--bg);
-  cursor: pointer;
-  transition:
-    width 0.45s cubic-bezier(0.33, 1, 0.68, 1),
-    color 0.3s,
-    background-color 0.3s,
-    box-shadow 0.3s;
 }
-.job:hover {
+.job:hover:not(.on) h2 {
   color: color-mix(in srgb, var(--muted), var(--label-ink) 45%);
 }
-.job.on {
-  width: var(--s);
-  background: var(--label-bg);
-  box-shadow:
-    0 0 0 1px var(--label-edge),
-    0 6px 20px rgba(0, 0, 0, 0.45);
-  color: var(--label-ink);
-  text-shadow: none;
-  cursor: auto;
-}
-.job h2 {
-  margin: 0;
+.job h2 button {
   font-size: 2em;
   line-height: 1.2;
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
-.job.on h2 button {
+/* The picture: a little map, a line to a skill, drawn by resume.js. It hangs under the row
+   the line runs through. */
+.pic {
+  display: block;
+  width: 100%;
+  height: var(--pic);
+  margin-top: var(--row);
+  opacity: 0.4;
+}
+.job:hover:not(.on) .pic {
+  opacity: 0.6;
+}
+.pic polyline {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pic circle {
+  fill: var(--dot);
+  stroke: var(--dot-edge);
+  stroke-width: 0.9;
+}
+/* The words fill the room under the picture from the top, but for the last line, which sits
+   at the card's foot. */
+.full {
+  position: absolute;
+  inset: calc(var(--pad) + var(--name) + var(--row) + var(--pic)) var(--side) auto;
+  display: flex;
+  flex-direction: column;
+  height: var(--words);
+  padding-top: 0.7em;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+}
+/* The picked job opens as the strip sets it down on the card: its words come up under its
+   name. */
+.job.on :is(h2, .pic, .full) {
+  transition-duration: 0.13s;
+  transition-delay: 0.22s;
+}
+.job.on h2 {
+  color: var(--label-ink);
+  text-shadow: none;
+}
+.job.on :is(h2, h2 button, .pic) {
   cursor: auto;
 }
-.on-line {
+.job.on .pic {
+  background: color-mix(in srgb, var(--label-ink) 7%, transparent);
+  opacity: 1;
+}
+.job.on .full {
+  opacity: 1;
+  visibility: visible;
+}
+.skills {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 0.2em 0.8em;
-  min-height: var(--row);
-}
-.stop {
-  width: 1.15em;
-  height: 1.15em;
-  border: 0.2em solid var(--dot-edge);
-  border-radius: 50%;
-  background: var(--dot);
+  margin-bottom: 0.5em;
 }
 .skill {
   display: inline-flex;
@@ -399,79 +468,42 @@ button:focus-visible {
   border-radius: 50%;
   background: var(--c);
 }
-.job.on .stop,
-.job:not(.on) .skill,
-.job:not(.on) .more {
-  display: none;
-}
 .job p {
   margin: 0;
+  font-size: 0.93em;
 }
 .job .role {
-  margin-top: 0.15em;
   font-size: 1.07em;
   font-weight: 600;
   line-height: 1.3;
 }
-.when,
-p.more {
-  font-size: 0.93em;
-}
-.on .when,
-p.more {
+.full p:not(.role) {
   opacity: 0.72;
 }
-ul.more {
-  margin: 0.9em 0 0;
-  padding-left: 1.1em;
-  font-size: 0.93em;
+/* A job says what it was in three lines at most, so no job outgrows the card. */
+.full p.blurb {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  flex: none;
+  margin-top: 0.7em;
+  overflow: hidden;
   opacity: 0.88;
 }
-ul.more li + li {
-  margin-top: 0.5em;
+.full p.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin-top: auto;
+  opacity: 1;
 }
-ul.more li::marker {
-  color: var(--line-d);
+.stat b {
+  font-size: 1.9em;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
-/* What only the card shows comes up as it opens. */
-.job.on .more {
-  animation: rise 0.4s 0.15s both;
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    translate: 0 0.4em;
-  }
-}
-/* Back and forth along the line, either side of the card. */
-.by {
-  position: absolute;
-  top: var(--mid);
-  left: calc(50% - var(--s) / 2 - var(--gap) / 2);
-  display: grid;
-  place-items: center;
-  width: 1.7em;
-  height: 1.7em;
-  translate: -50% -50%;
-  color: var(--dot);
-  filter: drop-shadow(0 0 2px var(--bg));
-}
-.by[data-by="1"] {
-  left: calc(50% + var(--s) / 2 + var(--gap) / 2);
-}
-.by::before {
-  content: "";
-  width: 0.72em;
-  height: 0.9em;
-  background: currentColor;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-}
-.by[data-by="-1"]::before {
-  rotate: 180deg;
-}
-/* Neither goes past the ends of the line. */
-.by.end {
-  visibility: hidden;
+.stat span {
+  opacity: 0.72;
 }
 /* The docs: a column of bold headings and short lines down the middle, like a game's credits,
    straight on the map. The --bg glow keeps it readable over the lines behind. */
