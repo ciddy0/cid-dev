@@ -52,6 +52,7 @@ them up in this order:
 | `live.js` | the live feed: the last half hour run through in a few seconds as the view opens, then the socket to `/live`, cars eased from one snapshot to the next |
 | `timetable.js` | the fallback feed: where every train is, worked out from the timetable |
 | `menu.js` | the menu and the screens it flies to; starts and stops the trains |
+| `resume.js` | the resume screen: the jobs as stops along a line, the picked one a card on it |
 | `settings.js`, `prefs.js` | the motion and sound switches, stored in `localStorage` |
 | `sound.js` | the synthesized piano: a note as a train arrives on screen, menu figures, the hum |
 | `geometry.js`, `math.js`, `dom.js` | bends and arcs, small numeric helpers, the SVG element helper |
@@ -75,6 +76,8 @@ first one gets no catch-up.
 
 - **A new menu screen**: add it to `SCREENS` in `js/menu.js`, a `data-go` button in `#menu` and a
   `<section class="screen">` with the same id in `index.html`.
+- **A job**: an entry in `JOBS` in `js/resume.js` (name, title, dates, skills) and its words
+  under `jobs` in `js/lang.js`, in both languages.
 - **A new setting**: a default in `js/prefs.js` and a `data-pref` switch in `index.html`.
 - **A line's colour**: `--line-<id>` in `styles.css` (falls back to the feed's colour).
 - **A station in the wrong place**: `pins` / `nudges` in `data/overrides.json`, then `npm run build`.

@@ -6,11 +6,13 @@ import { stationLabel } from "./label.js";
 import { t } from "./lang.js";
 import { menu } from "./menu.js";
 import { loadMap } from "./network.js";
+import { resume } from "./resume.js";
 import { settings } from "./settings.js";
 import { arrivals } from "./sound.js";
 import { trains } from "./trains.js";
 
 settings();
+resume();
 try {
   const map = await loadMap();
   const drawn = draw(map);

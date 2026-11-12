@@ -214,6 +214,7 @@ button:focus-visible {
 }
 .calm * {
   transition: none !important;
+  animation: none !important;
 }
 
 #menu,
@@ -275,41 +276,202 @@ button:focus-visible {
   padding: calc(68px + env(safe-area-inset-top)) 16px
     calc(16px + env(safe-area-inset-bottom));
 }
-.card {
-  width: min(100%, 420px);
-  max-height: 100%;
-  overflow: auto;
-  padding: 22px 24px;
+/* The resume: the jobs as stops along a line across the screen, oldest on the left. The picked
+   one is a card on the line, the others wait faded either side, and the strip slides to centre
+   the picked one (resume.js). Every job has the same padding and a one-line name, so the line
+   runs through them all at the same height: the card grows down from it, never up. */
+#resume {
+  place-items: stretch;
+  padding-inline: 0;
+}
+.jobs {
+  --s: min(22em, 100vw - 5em); /* the picked card's width */
+  --n: 12.5em; /* every other job's */
+  --gap: 2.5em;
+  --pad: 1.1em; /* a job's padding above its name */
+  --row: 2.2em; /* the row the line runs through */
+  --band: 0.8em; /* how thick the line is */
+  --top: max(0px, 30vh - 9em);
+  --mid: calc(var(--top) + var(--pad) + 2.4em + var(--row) / 2); /* the line, down from the top */
+  position: relative;
+  min-height: 0;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: var(--top) 0 1.5em;
+  font-size: 15px;
+  line-height: 1.45;
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+.strip {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap);
+  width: max-content;
+  margin-left: 50%;
+  translate: calc(
+    var(--drag, 0px) - var(--at, 0) * (var(--n) + var(--gap)) - var(--s) / 2
+  );
+  transition: translate 0.45s cubic-bezier(0.33, 1, 0.68, 1);
+}
+.strip.dragging {
+  transition: none;
+  user-select: none;
+}
+.strip::before {
+  content: "";
+  position: absolute;
+  left: -100vw;
+  right: -100vw;
+  top: calc(var(--mid) - var(--top) - var(--band) / 2);
+  height: var(--band);
+  background: var(--line-d);
+  box-shadow: 0 0 0 0.3em var(--bg); /* a gap either side, where it crosses the map's lines */
+}
+.job {
+  position: relative;
+  flex: none;
+  width: var(--n);
+  padding: var(--pad) 1.3em 1.3em;
   border-radius: 16px;
+  color: var(--muted);
+  text-shadow:
+    0 0 3px var(--bg),
+    0 0 8px var(--bg),
+    0 0 14px var(--bg);
+  cursor: pointer;
+  transition:
+    width 0.45s cubic-bezier(0.33, 1, 0.68, 1),
+    color 0.3s,
+    background-color 0.3s,
+    box-shadow 0.3s;
+}
+.job:hover {
+  color: color-mix(in srgb, var(--muted), var(--label-ink) 45%);
+}
+.job.on {
+  width: var(--s);
   background: var(--label-bg);
   box-shadow:
     0 0 0 1px var(--label-edge),
     0 6px 20px rgba(0, 0, 0, 0.45);
-  font-size: 15px;
-  line-height: 1.5;
-  pointer-events: auto;
+  color: var(--label-ink);
+  text-shadow: none;
+  cursor: auto;
 }
-.card h1 {
-  margin: 0 0 10px;
-  font-size: 24px;
-  letter-spacing: -0.02em;
+.job h2 {
+  margin: 0;
+  font-size: 2em;
   line-height: 1.2;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
-.card p,
-.card ul {
-  margin: 0 0 10px;
-  padding: 0;
-  list-style: none;
-  opacity: 0.82;
+.job.on h2 button {
+  cursor: auto;
 }
-.card :last-child {
-  margin-bottom: 0;
+.on-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2em 0.8em;
+  min-height: var(--row);
 }
-.card li + li {
-  margin-top: 6px;
+.stop {
+  width: 1.15em;
+  height: 1.15em;
+  border: 0.2em solid var(--dot-edge);
+  border-radius: 50%;
+  background: var(--dot);
 }
-.card b {
+.skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.87em;
   font-weight: 600;
+}
+.skill::before {
+  content: "";
+  width: 0.75em;
+  height: 0.75em;
+  border-radius: 50%;
+  background: var(--c);
+}
+.job.on .stop,
+.job:not(.on) .skill,
+.job:not(.on) .more {
+  display: none;
+}
+.job p {
+  margin: 0;
+}
+.job .role {
+  margin-top: 0.15em;
+  font-size: 1.07em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.when,
+p.more {
+  font-size: 0.93em;
+}
+.on .when,
+p.more {
+  opacity: 0.72;
+}
+ul.more {
+  margin: 0.9em 0 0;
+  padding-left: 1.1em;
+  font-size: 0.93em;
+  opacity: 0.88;
+}
+ul.more li + li {
+  margin-top: 0.5em;
+}
+ul.more li::marker {
+  color: var(--line-d);
+}
+/* What only the card shows comes up as it opens. */
+.job.on .more {
+  animation: rise 0.4s 0.15s both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 0.4em;
+  }
+}
+/* Back and forth along the line, either side of the card. */
+.by {
+  position: absolute;
+  top: var(--mid);
+  left: calc(50% - var(--s) / 2 - var(--gap) / 2);
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  translate: -50% -50%;
+  color: var(--dot);
+  filter: drop-shadow(0 0 2px var(--bg));
+}
+.by[data-by="1"] {
+  left: calc(50% + var(--s) / 2 + var(--gap) / 2);
+}
+.by::before {
+  content: "";
+  width: 0.72em;
+  height: 0.9em;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.by[data-by="-1"]::before {
+  rotate: 180deg;
+}
+/* Neither goes past the ends of the line. */
+.by.end {
+  visibility: hidden;
 }
 /* The docs: a column of bold headings and short lines down the middle, like a game's credits,
    straight on the map. The --bg glow keeps it readable over the lines behind. */

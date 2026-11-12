@@ -9,7 +9,43 @@ const TEXT = {
     resume: "Resume",
     docs: "Docs",
     settings: "Settings",
-    resumeCard: `<h1>Resume</h1><p>Coming soon.</p>`,
+    // A job's words by its id in js/resume.js; its name, title and dates live there.
+    jobs: {
+      csu: {
+        kind: "Full-time",
+        place: "Long Beach, CA · Hybrid",
+        points: [],
+      },
+      latech: {
+        kind: "Internship",
+        place: "Los Angeles, CA",
+        points: [
+          `Presented Los Angeles Mobility Optimizer (LAMO), a city-scale traffic optimization
+            app developed during the internship, to 20+ industry professionals at Demo Day and
+            awarded first place in innovation among 7 teams.`,
+          `Built JWT + Google OAuth authentication and RESTful user management APIs in Node.js,
+            Express, and MongoDB, serving as the core backend for LAMO.`,
+          `Designed and built the rewards screen and incentive system in React Native,
+            encouraging users to choose longer, less congested routes through points and rewards
+            to drive collective traffic relief across the city.`,
+        ],
+      },
+      unite: {
+        kind: "Internship",
+        place: "Los Angeles, CA",
+        points: [
+          `Completed specialized coursework in clean energy technologies, sustainability
+            practices, and environmental policy.`,
+          `Investigated the effects of climate change and environmental injustices in the city
+            of Watts and presented the findings to professionals in the cleantech industry.`,
+          `Performed an analysis of the city of Watts energy and environmental landscape.`,
+          `Gained insight into the advantages and disadvantages of various renewable energy
+            sources such as hydrogen, solar, hydropower, and wind for a wide range of
+            companies.`,
+        ],
+      },
+    },
+    present: "Present",
     docsCard: `<h2>What This Is</h2>
       <p>A map of the LA Metro rail network, with the trains where Metro says they are right
         now. Mostly I just wanted something nice to look at.</p>
@@ -71,7 +107,43 @@ const TEXT = {
     resume: "Currículum",
     docs: "Guía",
     settings: "Configuración",
-    resumeCard: `<h1>Currículum</h1><p>Próximamente.</p>`,
+    jobs: {
+      csu: {
+        kind: "Tiempo completo",
+        place: "Long Beach, CA · Híbrido",
+        points: [],
+      },
+      latech: {
+        kind: "Prácticas",
+        place: "Los Ángeles, CA",
+        points: [
+          `Presenté Los Angeles Mobility Optimizer (LAMO), una app para optimizar el tráfico de
+            toda la ciudad que hicimos durante las prácticas, a más de 20 profesionales de la
+            industria en el Demo Day, y nos llevamos el primer lugar en innovación de entre 7
+            equipos.`,
+          `Construí la autenticación con JWT + Google OAuth y las APIs REST para manejar
+            usuarios en Node.js, Express y MongoDB, el corazón del backend de LAMO.`,
+          `Diseñé y construí la pantalla de recompensas y el sistema de incentivos en React
+            Native, que con puntos y premios anima a la gente a tomar rutas más largas pero
+            menos congestionadas, para aliviar el tráfico de toda la ciudad.`,
+        ],
+      },
+      unite: {
+        kind: "Prácticas",
+        place: "Los Ángeles, CA",
+        points: [
+          `Completé cursos especializados en tecnologías de energía limpia, prácticas de
+            sustentabilidad y política ambiental.`,
+          `Investigué los efectos del cambio climático y las injusticias ambientales en Watts y
+            les presenté los resultados a profesionales de la industria de tecnologías
+            limpias.`,
+          `Analicé el panorama energético y ambiental de Watts.`,
+          `Aprendí las ventajas y desventajas de distintas fuentes de energía renovable, como el
+            hidrógeno, la solar, la hidroeléctrica y la eólica, para todo tipo de empresas.`,
+        ],
+      },
+    },
+    present: "Presente",
     docsCard: `<h2>Qué es esto</h2>
       <p>Un mapa de la red de trenes de LA Metro, con los trenes donde Metro dice que están
         ahorita. Más que nada quería algo bonito para ver.</p>
