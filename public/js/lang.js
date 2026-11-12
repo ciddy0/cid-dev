@@ -9,14 +9,18 @@ const TEXT = {
     resume: "Resume",
     docs: "Docs",
     settings: "Settings",
-    // A job's words by its id in js/resume.js; its name, title and dates live there. `stat` is
-    // the figure at the card's foot, and what it counts.
     jobs: {
+      csulb: {
+        kind: "Contract",
+        place: "Long Beach, CA · On-site",
+        blurb: `Helped students in digital logic and assembly, intro to programming, and intro to
+          computer science.`,
+        stat: ["3", "courses"],
+      },
       csu: {
         kind: "Full-time",
         place: "Long Beach, CA · Hybrid",
-        blurb: `Building data pipelines for the California State University system in PySpark and
-          SQL.`,
+        blurb: `Building data pipelines for the California State University system in PySpark.`,
         stat: ["Now", "current job"],
       },
       latech: {
@@ -97,11 +101,18 @@ const TEXT = {
     docs: "Guía",
     settings: "Configuración",
     jobs: {
+      csulb: {
+        kind: "Contrato",
+        place: "Long Beach, CA · Presencial",
+        blurb: `Ayudé a estudiantes lógica digital y ensamblador, programación y fundamentos de
+          computación.`,
+        stat: ["3", "materias"],
+      },
       csu: {
         kind: "Tiempo completo",
         place: "Long Beach, CA · Híbrido",
         blurb: `Construyo pipelines de datos para el sistema de la California State University en
-          PySpark y SQL.`,
+          PySpark.`,
         stat: ["Hoy", "trabajo actual"],
       },
       latech: {

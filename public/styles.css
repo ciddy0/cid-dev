@@ -11,6 +11,7 @@
   --line-e: #ffc12e;
   --line-g: #ff8a3d;
   --line-k: #f57fc3;
+  --line-bus: #b04a66; /* Long Beach Transit's, on the resume's maps */
   --label-bg: #1b1e25;
   --label-edge: rgba(247, 245, 239, 0.14);
   --label-ink: #f7f5ef;
@@ -296,7 +297,7 @@ button:focus-visible {
   --name: 2.4em; /* a name's row */
   --row: 2.2em; /* the row the line runs through, under the names */
   --band: 0.8em; /* how thick the line is */
-  --pic: calc((var(--s) - 2 * var(--side)) / 2); /* how tall a job's picture is, half its width */
+  --pic: calc((var(--s) - 2 * var(--side)) * 2 / 3); /* how tall a job's picture is, to its width */
   --words: 18.5em; /* the room for a job's words under it, the same for every job */
   display: grid;
   grid-template-columns: 100%;
@@ -390,7 +391,7 @@ button:focus-visible {
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
-/* The picture: a little map, a line to a skill, drawn by resume.js. It hangs under the row
+/* The picture: a little map of where the job was, drawn by resume.js. It hangs under the row
    the line runs through. */
 .pic {
   display: block;
@@ -402,17 +403,41 @@ button:focus-visible {
 .job:hover:not(.on) .pic {
   opacity: 0.6;
 }
+.pic {
+  --water: color-mix(in srgb, var(--line-a) 55%, #bfe9f5);
+}
 .pic polyline {
   fill: none;
   stroke: var(--c);
-  stroke-width: 2.6;
-  stroke-linecap: round;
+  stroke-width: 1.5;
   stroke-linejoin: round;
 }
-.pic circle {
-  fill: var(--dot);
-  stroke: var(--dot-edge);
-  stroke-width: 0.9;
+/* The water only shows on the card: a waiting job's picture is just its lines. */
+.pic :is(.water, .river) {
+  opacity: 0;
+  transition: opacity 0.07s;
+}
+.job.on .pic :is(.water, .river) {
+  opacity: 1;
+  transition: opacity 0.13s 0.22s;
+}
+.pic .water {
+  fill: var(--water);
+}
+.pic .river {
+  stroke: var(--water);
+  stroke-width: 2.4;
+}
+.pic circle,
+.pic .pin {
+  fill: var(--label-bg);
+  stroke: var(--label-ink);
+  stroke-width: 0.6;
+}
+.pic .pin {
+  fill: var(--label-ink);
+  stroke: var(--label-bg);
+  stroke-width: 0.8;
 }
 /* The words fill the room under the picture from the top, but for the last line, which sits
    at the card's foot. */

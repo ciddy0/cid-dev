@@ -1,16 +1,19 @@
-// The resume screen: my jobs along a line across the screen, oldest on the left. A card sits
-// still on the middle of the line with the picked job's words on it, and the others wait faded
-// either side, a name and a picture each. To bring another in, the words leave the card, the
-// strip of jobs slides over it, and the new job's words come up as it stops: tap a job, use
-// the arrow keys, or swipe.
 import { onLang, t } from "./lang.js";
 import { prefs } from "./prefs.js";
 import { chime } from "./sound.js";
 
-// What stays the same in every language. The rest of a job's words are under `jobs` in
-// lang.js, by id. A job with no `to` is the one I'm still at. `map` is its picture: a little
-// map of lines, each a run of points on a 96 by 48 grid.
 const JOBS = [
+  {
+    id: "csulb",
+    name: "CSULB",
+    org: "California State University, Long Beach",
+    role: "Instructor Student Assistant",
+    from: "2025-01",
+    to: "2025-12",
+    skills: ["CECS 225", "CECS 174", "CECS 105"], // the courses I assisted
+    map: "eastLongBeach",
+    pin: [47, 21.5],
+  },
   {
     id: "unite",
     name: "UNITE-LA",
@@ -18,10 +21,8 @@ const JOBS = [
     from: "2025-09",
     to: "2025-12",
     skills: [],
-    map: [
-      [[10, 36], [38, 36], [56, 18], [86, 18]],
-      [[30, 8], [30, 24], [46, 40], [72, 40]],
-    ],
+    map: "dtla",
+    pin: [47, 43], // Wilshire, just west of the 110
   },
   {
     id: "latech",
@@ -30,12 +31,8 @@ const JOBS = [
     from: "2026-02",
     to: "2026-05",
     skills: ["Node.js", "Express", "MongoDB", "React Native"],
-    map: [
-      [[8, 12], [34, 12], [54, 32], [88, 32]],
-      [[18, 42], [38, 22], [62, 22], [76, 8]],
-      [[48, 6], [48, 42]],
-      [[8, 26], [26, 26], [40, 40], [66, 40], [82, 24]],
-    ],
+    map: "dtla",
+    pin: [61, 45],
   },
   {
     id: "csu",
@@ -44,26 +41,199 @@ const JOBS = [
     role: "Junior Data Operations Development Engineer",
     from: "2026-08",
     skills: ["PySpark", "SQL"],
-    map: [
-      [[10, 10], [34, 10], [58, 34], [86, 34]],
-      [[12, 40], [38, 40], [64, 14], [84, 14]],
-    ],
+    map: "longBeach",
+    pin: [31.8, 62], // the Chancellor's Office, on Golden Shore
   },
 ];
-// The lines whose colours a job's skills are dotted in, and its picture drawn in, in turn.
-const DOTS = ["a", "b", "c", "d", "e", "g", "k"];
-const ink = (k) => `--c: var(--line-${DOTS[k % DOTS.length]})`;
 
-// A job's picture: each line with a stop at either end.
-const picture = (job) =>
-  `<svg class="pic" viewBox="0 0 96 48" aria-hidden="true">${job.map
-    .map(
-      (line, k) =>
-        `<g style="${ink(k)}"><polyline points="${line.join(" ")}"/>${[line[0], line.at(-1)]
-          .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2"/>`)
-          .join("")}</g>`,
-    )
-    .join("")}</svg>`;
+const MAPS = {
+  dtla: {
+    // Silver Lake, Echo Park's lake and MacArthur Park's.
+    water: ["M36 3h4l1 5-2 3h-3zM44 21h2.5v4H44zM38 49.6h4v2.6h-4z"],
+    rivers: [
+      [
+        [93, 0],
+        [90, 13],
+        [93, 28],
+        [96, 48],
+        [99, 80],
+      ],
+    ],
+    lines: [
+      [
+        "e",
+        [
+          [0, 66],
+          [40, 66],
+          [50.4, 55.6],
+          [50.4, 39.3],
+          [55.3, 34.4],
+          [104, 34.4],
+          [110, 40],
+          [120, 40],
+        ],
+      ],
+      [
+        "d",
+        [
+          [0, 47.6],
+          [52.7, 47.6],
+          [68.7, 31.6],
+          [80, 31.6],
+        ],
+      ],
+      [
+        "b",
+        [
+          [0, 8],
+          [16, 8],
+          [24, 16],
+          [24, 40],
+          [30, 46],
+          [52, 46],
+          [68, 30],
+          [80, 30],
+        ],
+      ],
+      [
+        "a",
+        [
+          [52, 80],
+          [52, 40],
+          [56, 36],
+          [74, 36],
+          [80, 30],
+          [80, 18],
+          [98, 0],
+        ],
+      ],
+    ],
+    // prettier-ignore
+    stops: [
+      [10, 8], [24, 20], [24, 32], [10, 47.6], [31, 46.8], [42, 46.8], [52, 46.8], [58.6, 40.6],
+      [64.6, 34.6], [80, 30.8], [74, 35.2], [80, 22], [88, 10], [104, 34.4], [51.2, 52],
+      [52, 68], [32, 66], [16, 66],
+    ],
+  },
+  longBeach: {
+    water: [
+      "M26 0h2.5v62l2.5 5 7 2h6l2-3 14 1.5 40 2 20-3.5v14H34l-1-8-4-4-3-2z" + // the river and the bay
+        "M66 73h3v3h-3zM88 74h3v3h-3zM106 73h3v3h-3z", // the oil islands
+      "M0 57h20l6 3v3h-8l-6-2H0zM0 67h8l4 5v8H0z", // the port's channels
+    ],
+    rivers: [],
+    lines: [
+      [
+        "a",
+        [
+          [40, 0],
+          [42, 3],
+          [42, 57],
+          [36, 57],
+          [36, 49.8],
+          [42, 49.8],
+        ],
+      ],
+    ],
+    // Willow St, Pacific Coast Hwy, Anaheim St, 5th St, 1st St, Downtown Long Beach, Pacific Av.
+    stops: [
+      [42, 10.2],
+      [42, 24],
+      [42, 38.6],
+      [42, 49.8],
+      [42, 57],
+      [36, 57],
+      [36, 52.5],
+    ],
+  },
+  eastLongBeach: {
+    water: [
+      "M0 41l20.8 5.2 13.9 7L45 59l12.8 8 11.6 7 5.6 6H0zM10 61h3v2.5h-3zM24 66h3v2.5h-3z", // the sea
+      "M46 61l3-3-1-7-2-7-5-6-5-2-2 2 5 4 2 3-6-1-3 3.5 3 4.5 6 3zM36 46.5h5l1.5 3-3 2-3.5-2z", // the bay
+      "M62 70l4-6 4-2 2-6 4-1 1 5 4 2-1 6-5-1-3 4-5 1-2 2z", // the wetlands
+      "M76 80l4-5 8-1 3 3-2 3z",
+    ],
+    rivers: [
+      [
+        [70, 0],
+        [64, 16],
+        [60, 28],
+        [59, 42],
+        [55, 56],
+        [52, 64],
+      ],
+    ],
+    lines: [
+      [
+        "bus",
+        [
+          [0, 18],
+          [55, 18],
+          [55, 0],
+        ],
+      ], // the 170s: Atherton St, then up Studebaker Rd
+      [
+        "bus",
+        [
+          [0, 31.5],
+          [40.5, 31.5],
+          [40.5, 0],
+        ],
+      ], // the 90s: 7th St, then up Bellflower Blvd
+      [
+        "bus",
+        [
+          [0, 25],
+          [29, 25],
+          [35.5, 31.5],
+          [48, 31.5],
+          [48, 27],
+        ],
+      ], // the 40s: Anaheim St to campus
+      [
+        "bus",
+        [
+          [0, 38],
+          [20, 38],
+          [30.5, 48.5],
+          [52.5, 48.5],
+        ],
+      ], // the 121: 2nd St, over Naples
+      [
+        "bus",
+        [
+          [35.5, 31.5],
+          [72, 68],
+          [74, 80],
+        ],
+      ], // the 171: down Pacific Coast Hwy to Seal Beach
+    ],
+    stops: [
+      [48, 27],
+      [40.5, 18],
+      [40.5, 31.5],
+      [35.5, 31.5],
+      [39, 48.5],
+      [52.5, 48.5],
+    ],
+  },
+};
+// The lines whose colours a job's skills are dotted in, in turn.
+const DOTS = ["a", "b", "c", "d", "e", "g", "k"];
+
+// A job's picture: its map, and a diamond where the job was.
+function picture(job) {
+  const { water, rivers, lines, stops } = MAPS[job.map],
+    [x, y] = job.pin,
+    run = (points) => `points="${points.join(" ")}"`;
+  return `<svg class="pic" viewBox="0 0 120 80" aria-hidden="true">
+    ${water.map((d) => `<path class="water" fill-rule="evenodd" d="${d}"/>`).join("")}
+    ${rivers.map((river) => `<polyline class="river" ${run(river)}/>`).join("")}
+    ${lines.map(([line, points]) => `<polyline style="--c: var(--line-${line})" ${run(points)}/>`).join("")}
+    ${stops.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="1.3"/>`).join("")}
+    <rect class="pin" x="${x - 1.9}" y="${y - 1.9}" width="3.8" height="3.8" transform="rotate(45 ${x} ${y})"/>
+  </svg>`;
+}
 
 const SWIPE = 48; // px a swipe travels to move on a job
 const STRETCH = 0.35; // how far the strip follows a swipe past either end
@@ -86,7 +256,10 @@ export function resume() {
     strip.innerHTML = JOBS.map((job, i) => {
       const { kind, place, blurb, stat } = t("jobs")[job.id];
       const when = `${month(job.from)} – ${job.to ? month(job.to) : t("present")}`;
-      const skills = job.skills.map((s, k) => `<span class="skill" style="${ink(k)}">${s}</span>`);
+      const skills = job.skills.map(
+        (s, k) =>
+          `<span class="skill" style="--c: var(--line-${DOTS[k % DOTS.length]})">${s}</span>`,
+      );
       return `<article class="job" data-i="${i}">
         <h2><button>${job.name}</button></h2>
         ${picture(job)}
@@ -134,13 +307,15 @@ export function resume() {
   let swipe = null,
     swiped = false; // so the click that ends a swipe isn't a tap on whatever it ended over
   jobs.addEventListener("pointerdown", (e) => {
-    if (!e.button) swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, on: false };
+    if (!e.button)
+      swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, on: false };
   });
   jobs.addEventListener("pointermove", (e) => {
     if (swipe?.id !== e.pointerId) return;
     const dx = e.clientX - swipe.x;
     if (!swipe.on) {
-      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(e.clientY - swipe.y)) return;
+      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(e.clientY - swipe.y))
+        return;
       swipe.on = true;
       jobs.setPointerCapture(e.pointerId);
       strip.classList.add("dragging");
@@ -171,7 +346,8 @@ export function resume() {
     if (job) pick(+job.dataset.i);
   });
   addEventListener("keydown", (e) => {
-    if (jobs.closest(".screen").hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (jobs.closest(".screen").hidden || e.altKey || e.ctrlKey || e.metaKey)
+      return;
     const by = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
     if (!by) return;
     e.preventDefault();
