@@ -300,6 +300,37 @@ button:focus-visible {
 .card b {
   font-weight: 600;
 }
+/* The docs: a column of bold headings and short lines down the middle, like a game's credits,
+   straight on the map. The --bg glow keeps it readable over the lines behind. */
+.docs {
+  width: min(100%, 30em);
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  font-size: clamp(16px, 2.6vmin, 20px);
+  line-height: 1.35;
+  text-align: center;
+  text-shadow:
+    0 0 3px var(--bg),
+    0 0 8px var(--bg),
+    0 0 14px var(--bg);
+  pointer-events: auto;
+}
+.docs h2 {
+  margin: 1.4em 0 0.3em;
+  font-size: 1.25em;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child {
+  margin-top: 0;
+}
+.docs p {
+  margin: 0 0 0.45em;
+}
+.docs b {
+  font-weight: 700;
+}
 /* The settings: names down the left, each one's switch or stepper to its right, straight on
    the map. The two halves meet down the middle of the screen, so the controls stay put however
    long the names are in each language. */
