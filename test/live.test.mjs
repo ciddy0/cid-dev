@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { follower } from "../public/js/live.js";
+import { FRESH, follower } from "../public/js/live.js";
 import { SEATS } from "../public/js/timetable.js";
 
 const hop = (from, to) => ({ from, to });
@@ -18,7 +18,7 @@ test("nothing to go on until a snapshot comes, nor once it is old", () => {
   const [state] = follow.at(11);
   assert.deepEqual(where([state]), ["a", "b", 0.5]);
   assert.ok(state.id === "101" && state.line === "A" && state.load.length <= SEATS);
-  assert.equal(follow.at(41), null);
+  assert.equal(follow.at(10 + FRESH + 1), null);
 });
 
 test("a car glides to where its train was last seen, through the station on the way", () => {
@@ -90,7 +90,7 @@ test("the record is run through first, fast then settling, every train along its
   // Over: everyone is where the last frame saw them, and it counts as a snapshot.
   const ended = follow.at(54.1).map((s) => [s.id, ...where([s])]);
   assert.deepEqual(ended, [["101", "b", "c", 1], ["102", "b", "a", 0.5], ["103", "c", "b", 0.2]]);
-  assert.equal(follow.at(54.1 + 31), null);
+  assert.equal(follow.at(54.1 + FRESH + 1), null);
 });
 
 test("news during the catch-up becomes its last frame, so that it ends on now", () => {

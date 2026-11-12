@@ -6,7 +6,9 @@
 import { bezier, clamp, easeInOutQuad } from "./math.js";
 import { riders } from "./timetable.js";
 
-const FRESH = 30; // seconds a snapshot is good for
+// Seconds a snapshot is good for: long enough to see the socket through a couple of retries and
+// the hub waking up, so that the timetable only takes over when Metro is really down.
+export const FRESH = 120;
 const GLIDE = [5, 30]; // seconds a car takes to where its train was last seen, at least and most
 const HOP = 15; // seconds a hop, the fastest a car glides
 const LAG = 12; // seconds a car takes to make up the minute or so the record was behind by
@@ -230,7 +232,13 @@ export function live(routes, { onNews = () => {}, catchUp = () => 0 } = {}) {
     waiting = null;
     onNews();
   }
-  document.addEventListener("visibilitychange", () => (document.hidden ? close() : open()));
+  // Back after long enough for the trains to be stale: caught up on, as when the view opens.
+  let left = 0;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return void ((left = Date.now() / 1000), close());
+    if (wanted && Date.now() / 1000 - left > FRESH) history();
+    open();
+  });
   return {
     feed: (now) => (waiting ? [] : follow.at(now)),
     watch(on) {

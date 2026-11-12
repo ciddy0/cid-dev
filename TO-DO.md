@@ -92,7 +92,7 @@ with a catch-up: the last 30 minutes in 6 s, easing out into now.
 - [x] Worker route `/live` that upgrades to a websocket and forwards to the hub
 - [x] Add the Durable Object binding + migration to `wrangler.jsonc`
 - [x] Page (`public/js/live.js`): open `/live`, ease cars toward each snapshot; fall back to
-      `timetable.js` when the socket fails or a snapshot is older than 30s
+      `timetable.js` when the socket fails or a snapshot is older than `FRESH` (120s)
 - [x] The record: the hub stores a snapshot a minute (an alarm rings Metro up for ~8s when
       nobody is watching) and serves the last half hour at `/live/history`
 - [x] Catch-up: `follower().replay()` in `public/js/live.js` runs the record through on
@@ -100,6 +100,21 @@ with a catch-up: the last 30 minutes in 6 s, easing out into now.
 - [x] Smooth hand-off from the catch-up to live: the first snapshot becomes the record's last
       frame when it comes in time, else cars ease up to date over 12s; after that they glide at
       the train's own speed (no lurch every snapshot), and finish their run before turning back
+- [x] Cars vanishing and coming back (B, G and others): the hub dropped a train once Metro's
+      report of it was 5 min old, but Metro goes on sending trains whose report is up to ~10 min
+      old (end-of-line layovers, G buses in batches). It now drops a train only when Metro hasn't
+      mentioned it for `GONE` (5 min). Side effect: layovers and a bus with a dead tracker stand
+      still on the map instead of vanishing
+- [x] Fewer hard cuts to the timetable and back: `FRESH` 30s → 120s rides out a reconnect (two
+      retries + the hub waking, or a deploy), and back on a tab hidden longer than that runs the
+      catch-up again instead of timetable → live
+- [ ] Check the tab-return catch-up in a browser (no test covers it)
+- [ ] First load with an empty record (`/live/history` frames ≤ 1) still goes timetable → live
+      with a hard cut — maybe hold an empty map a few seconds longer for the first snapshot
+- [ ] A Metro socket that stays open but goes silent is never redialled: the hub stops sending
+      until the last viewer leaves. Hang up and redial a feed silent for `QUIET`
+- [ ] An outage past `FRESH` still swaps timetable cars for live ones (different ids) with a cut;
+      a cross-fade between the two would smooth it
 - [ ] Look at it in a browser, day and night: tune `CATCH_UP` (`trains.js`) and `PAST`, `LAG`,
       `GLIDE` (`live.js`); maybe a "live" mark
 - [ ] Catch-up over the last 60 minutes instead of 30: `PAST` in `public/js/live.js` and `KEEP`

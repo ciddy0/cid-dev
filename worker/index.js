@@ -17,7 +17,7 @@ const EVERY = 5; // seconds between snapshots
 const QUIET = 30; // seconds without a word from Metro before the snapshots stop
 const WARM = 8; // seconds given to Metro to connect and get through every vehicle
 const ROUND = 1.5; // seconds a feed takes over every vehicle, from the first it sends
-const GONE = 300; // seconds since a train last reported before it is dropped
+const GONE = 300; // seconds since Metro last mentioned a train before it is dropped
 const RETRY = 30; // seconds between tries at a feed that is down
 const RECORD = 60; // seconds between frames of the record
 const KEEP = 35 * 60; // seconds a frame is kept, a little over what the page plays back
@@ -134,7 +134,9 @@ export class LiveHub extends DurableObject {
         feed.since = this.heard;
         setTimeout(() => this.timer && this.tick(), ROUND * 1000 + 100);
       }
-      if (train) this.trains.set(train.id, train);
+      // Kept by when it was heard of, not when it last reported: Metro goes on sending a train
+      // whose report is minutes old (one standing at the end of the line, say), and it's there.
+      if (train) this.trains.set(train.id, { ...train, heard: this.heard });
       else this.trains.delete(message.id);
     });
     socket.addEventListener("error", () => {}); // `connect` tries again
@@ -143,10 +145,10 @@ export class LiveHub extends DurableObject {
   // The trains as JSON, less the ones that have gone, or nothing while Metro hasn't been heard
   // from, not for a while or not yet: every feed gets its say first, if it answers in time.
   snapshot(now) {
-    for (const [id, train] of this.trains) if (now - train.seen > GONE) this.trains.delete(id);
+    for (const [id, train] of this.trains) if (now - train.heard > GONE) this.trains.delete(id);
     const said = ({ since }) => (since ? now - since >= ROUND : now - this.woke >= WARM);
     if (now - this.heard > QUIET || !this.feeds.every(said)) return null;
-    return JSON.stringify(Array.from(this.trains.values(), ({ seen, ...train }) => train));
+    return JSON.stringify(Array.from(this.trains.values(), ({ seen, heard, ...train }) => train));
   }
 
   // Keeps the feeds up and sends everyone (or just `to`, who has only now joined) a snapshot.
