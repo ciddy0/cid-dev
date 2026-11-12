@@ -12,27 +12,23 @@ const TEXT = {
     jobs: {
       csulb: {
         kind: "Contract",
-        place: "Long Beach, CA · On-site",
         blurb: `Helped students in digital logic and assembly, intro to programming, and intro to
           computer science.`,
         stat: ["3", "courses"],
       },
       csu: {
         kind: "Full-time",
-        place: "Long Beach, CA · Hybrid",
         blurb: `Building data pipelines for the California State University system in PySpark.`,
         stat: ["Now", "current job"],
       },
       latech: {
         kind: "Internship",
-        place: "Los Angeles, CA",
         blurb: `Built the backend and rewards system of LAMO, an app that pays drivers in points
           to take less congested routes.`,
         stat: ["1st", "of 7 teams at Demo Day"],
       },
       unite: {
         kind: "Internship",
-        place: "Los Angeles, CA",
         blurb: `Studied clean energy and environmental policy, and researched the effects of climate
           change on the city of Watts.`,
         stat: ["4", "energy sources studied"],
@@ -103,28 +99,24 @@ const TEXT = {
     jobs: {
       csulb: {
         kind: "Contrato",
-        place: "Long Beach, CA · Presencial",
         blurb: `Ayudé a estudiantes lógica digital y ensamblador, programación y fundamentos de
           computación.`,
         stat: ["3", "materias"],
       },
       csu: {
         kind: "Tiempo completo",
-        place: "Long Beach, CA · Híbrido",
         blurb: `Construyo pipelines de datos para el sistema de la California State University en
           PySpark.`,
         stat: ["Hoy", "trabajo actual"],
       },
       latech: {
         kind: "Prácticas",
-        place: "Los Ángeles, CA",
         blurb: `Construí el backend y las recompensas de LAMO, una app que da puntos por tomar
           rutas menos congestionadas.`,
         stat: ["1.º", "de 7 equipos en el Demo Day"],
       },
       unite: {
         kind: "Prácticas",
-        place: "Los Ángeles, CA",
         blurb: `Estudié energía limpia y política ambiental, e investigué los efectos del cambio
           climático en Watts.`,
         stat: ["4", "fuentes de energía estudiadas"],

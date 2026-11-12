@@ -7,7 +7,7 @@ const JOBS = [
     id: "csulb",
     name: "CSULB",
     org: "California State University, Long Beach",
-    role: "Instructor Student Assistant",
+    role: "Instructor's Student Assistant",
     from: "2025-01",
     to: "2025-12",
     skills: ["CECS 225", "CECS 174", "CECS 105"], // the courses I assisted
@@ -38,7 +38,7 @@ const JOBS = [
     id: "csu",
     name: "CSU",
     org: "California State University, Office of the Chancellor",
-    role: "Junior Data Operations Development Engineer",
+    role: "Junior Data Engineer",
     from: "2026-08",
     skills: ["PySpark", "SQL"],
     map: "longBeach",
@@ -254,7 +254,7 @@ export function resume() {
 
   function build() {
     strip.innerHTML = JOBS.map((job, i) => {
-      const { kind, place, blurb, stat } = t("jobs")[job.id];
+      const { kind, blurb, stat } = t("jobs")[job.id];
       const when = `${month(job.from)} – ${job.to ? month(job.to) : t("present")}`;
       const skills = job.skills.map(
         (s, k) =>
@@ -268,7 +268,6 @@ export function resume() {
           <p class="role">${job.role}</p>
           ${job.org ? `<p>${job.org}</p>` : ""}
           <p>${when} · ${kind}</p>
-          <p>${place}</p>
           <p class="blurb">${blurb}</p>
           <p class="stat"><b>${stat[0]}</b><span>${stat[1]}</span></p>
         </div>
