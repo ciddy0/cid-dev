@@ -295,6 +295,7 @@ button:focus-visible {
 #resume {
   place-items: stretch;
   padding-inline: 0;
+  container-type: size; /* so the jobs can tell how tall their room is (cqh) */
 }
 .jobs {
   --s: min(22em, 100vw - 5em); /* the card's width */
@@ -306,7 +307,12 @@ button:focus-visible {
   --row: 2.2em; /* the row the line runs through, under the names */
   --band: 0.8em; /* how thick the line is */
   --pic: calc((var(--s) - 2 * var(--side)) * 2 / 3); /* how tall a job's picture is, to its width */
-  --words: 18.5em; /* the room for a job's words under it, the same for every job */
+  --foot: 1.5em; /* the room left under the card */
+  --rest: calc(var(--pad) + var(--name) + var(--row) + var(--pic) + var(--side)); /* the card, but for its words */
+  /* The room for a job's words under it, the same for every job. On a short screen it gives
+     up its slack, down to what the longest job needs, so the whole card still shows. */
+  --words: clamp(16.5em, 100cqh - var(--rest) - var(--foot), 18.5em);
+  --card: calc(var(--rest) + var(--words)); /* how tall the card is */
   display: grid;
   grid-template-columns: 100%;
   align-content: start;
@@ -314,11 +320,18 @@ button:focus-visible {
   overflow: hidden auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
-  padding: max(0px, 30vh - 9em) 0 1.5em;
+  /* The line runs 30vh down the screen, or higher where the card needs the room. */
+  padding: max(0px, min(30vh - 9em, 100cqh - var(--card) - var(--foot))) 0 var(--foot);
   font-size: 15px;
   line-height: 1.45;
   touch-action: pan-y;
   pointer-events: auto;
+}
+/* On the narrowest screens the words wrap onto more lines, and need all of this. */
+@media (max-width: 349px) {
+  .jobs {
+    --words: 19em;
+  }
 }
 /* The line, the card on it and the jobs over both. */
 .jobs::before,
@@ -339,7 +352,7 @@ button:focus-visible {
   content: "";
   place-self: start center;
   width: var(--s);
-  height: calc(var(--pad) + var(--name) + var(--row) + var(--pic) + var(--words) + var(--side));
+  height: var(--card);
   background: var(--label-bg);
 }
 .strip {
