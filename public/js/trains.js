@@ -9,7 +9,8 @@ import { rail } from "./rail.js";
 import { drone } from "./sound.js";
 import { SEATS, runs, scheduled } from "./timetable.js";
 
-const CATCH_UP = 6; // seconds the last half hour is run through in as the view opens
+const CATCH_UP = 30; // seconds the last hour is run through in as the view opens
+const ALIGHT = 120; // ms a passenger takes to shrink out of their seat (`alight` in styles.css)
 
 // Returns { show, run }: `show(states)` draws one answer from a feed, and `run(on)` starts or
 // stops the cars following the feeds. With motion off they are put where they are right now and
@@ -25,18 +26,18 @@ export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = 
     ),
   );
 
-  const cars = new Map(); // train id → its <g>, the <g> of its passengers and who they are
-  function car({ line }) {
+  const cars = new Map(); // train id → its <g>, the <g> of its passengers and who is in each seat
+  function car() {
     const g = el("g", { class: "train" }, layers.trains);
     const body = el(
       "rect",
       { x: -long / 2, y: -wide / 2, width: long, height: wide, rx: wide * 0.08 },
       g,
     );
-    body.style.fill = lineColor(line);
-    return { g, riders: el("g", { class: "riders" }, g), load: "" };
+    return { g, body, riders: el("g", { class: "riders" }, g), load: null, seats: [] };
   }
-  // Passengers sit two abreast, filling the car from the front.
+  // Passengers sit two abreast, the first seats at the front. One who gets on pops into their
+  // seat and one who gets off shrinks out of it, except on a car only now put on the map.
   const r = wide * 0.15;
   const rider = {
     circle: (x, y, to) => el("circle", { cx: x, cy: y, r }, to),
@@ -47,15 +48,24 @@ export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = 
   };
   function seat(car, load = []) {
     if (car.load === load.join()) return;
+    const fresh = car.load == null;
     car.load = load.join();
-    car.riders.replaceChildren();
     const rows = SEATS / 2,
       pitch = (long * 0.86) / rows;
-    load.slice(0, SEATS).forEach((shape, k) => {
+    for (let k = 0; k < SEATS; k++) {
+      const was = car.seats[k],
+        shape = load[k] ?? null;
+      if (shape === (was?.shape ?? null)) continue;
+      if (was && prefs.motion) {
+        was.el.setAttribute("class", "off");
+        setTimeout(() => was.el.remove(), ALIGHT);
+      } else was?.el.remove();
       const x = (rows / 2 - Math.floor(k / 2) - 0.5) * pitch,
         y = (k % 2 ? 1 : -1) * wide * 0.23;
-      rider[shape]?.(round(x), round(y), car.riders);
-    });
+      const made = rider[shape]?.(round(x), round(y), car.riders);
+      if (made && !fresh) made.setAttribute("class", "on");
+      car.seats[k] = made && { shape, el: made };
+    }
   }
 
   // Put a car on every train in `states`, and take away the cars of trains no longer in it.
@@ -65,8 +75,10 @@ export function trains({ tracks, layers, lane }, map, { onArrive = () => {} } = 
       const hop = hops.get(`${state.line} ${state.from} ${state.to}`);
       if (!hop) continue; // not between two stations this map joins up
       live.add(state.id);
-      if (!cars.has(state.id)) cars.set(state.id, car(hop));
+      if (!cars.has(state.id)) cars.set(state.id, car());
       const it = cars.get(state.id);
+      // In its line's colour, which changes with a train that goes on as another line.
+      if (it.line !== hop.line) it.body.style.fill = lineColor((it.line = hop.line));
       seat(it, state.load);
       // Standing at one end of its hop or the other, where a moment ago it was moving. Or
       // already past the station it was headed for, having gone through between two looks.

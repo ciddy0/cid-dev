@@ -76,7 +76,7 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 Diagram: `docs/live-trains-architecture.svg`. One Durable Object holds the only sockets to Metro
 (rail, and the G Line's buses) and fans out to every visitor, so Metro sees the same two
 connections however many people are watching. Live trains run at real speed, so the view opens
-with a catch-up: the last 30 minutes in 6 s, easing out into now.
+with a catch-up: the last 60 minutes in 30 s, every car calling at its stations, slowing into now.
 - [x] Find a keyless feed: `wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions` streams GTFS-rt
       vehicle positions every 3s, no API key (optionally filter: `/ws/LACMTA_Rail/vehicle_positions/801,802`)
 - [ ] Note: the REST `trip_detail/route_code/{route}` endpoints returned `[]` while the socket
@@ -115,12 +115,21 @@ with a catch-up: the last 30 minutes in 6 s, easing out into now.
       until the last viewer leaves. Hang up and redial a feed silent for `QUIET`
 - [ ] An outage past `FRESH` still swaps timetable cars for live ones (different ids) with a cut;
       a cross-fade between the two would smooth it
+- [x] Catch-up like the game: each car takes a hop at a time, standing at the stations either
+      end (`STAND`) while passengers get off and on one by one (`SWAP`), on a steady clock that
+      only slows over the last stretch (`RAMP`). Every snapshot that comes during it is folded
+      in, so it still ends on now
+- [x] Catch-up over the last 60 minutes instead of 30, in 30 s instead of 6: `PAST` in
+      `public/js/live.js`, `KEEP` in `worker/index.js` (65 min), `CATCH_UP` in `trains.js`. A
+      full replay needs the hub to have been recording for an hour; less is run through at the
+      same speed
+- [x] Cars snapping across or going missing where a train changed runs: one that turns back
+      short of the end of the line (A trains do, a lot) or carries on as another line (B → D at
+      Union Station) now rides to the station it turned at first, and takes the new line's name
 - [ ] Look at it in a browser, day and night: tune `CATCH_UP` (`trains.js`) and `PAST`, `LAG`,
-      `GLIDE` (`live.js`); maybe a "live" mark
-- [ ] Catch-up over the last 60 minutes instead of 30: `PAST` in `public/js/live.js` and `KEEP`
-      in `worker/index.js` (a little over `PAST`, so ~65 min). Twice the record to download
-      (~40 KB gzipped) and twice as far for each train to race, so retune `CATCH_UP` and the
-      curve with it; a full replay then needs the hub to have been recording for an hour
+      `GLIDE`, `STAND`, `SWAP`, `RAMP` (`live.js`); maybe a "live" mark
+- [ ] Trains whose tracker reports in bursts (G buses, the A's Long Beach loop) still dash a
+      couple of hops in the catch-up. Cap the pace and let them run late?
 - [ ] Deploy, then watch the Durable Object's usage: awake while anyone has the map open, and
       for ~8s of every minute otherwise, for ever
 - [ ] Check Metro's terms of use / rate limits; the API has `/login` + `/token`, so the socket may

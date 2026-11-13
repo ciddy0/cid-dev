@@ -1,6 +1,6 @@
 // The Worker in front of the page. Everything is a static asset except /live, a websocket that
 // sends where LA Metro's trains are every few seconds, and /live/history, where they have been
-// over the last half hour. One Durable Object, the hub, holds the only sockets to Metro and
+// over the last hour. One Durable Object, the hub, holds the only sockets to Metro and
 // fans out to every visitor, so Metro sees the same connections however many people are
 // watching. With nobody watching it still looks in once a minute, to keep the record.
 import { DurableObject } from "cloudflare:workers";
@@ -20,7 +20,7 @@ const ROUND = 1.5; // seconds a feed takes over every vehicle, from the first it
 const GONE = 300; // seconds since Metro last mentioned a train before it is dropped
 const RETRY = 30; // seconds between tries at a feed that is down
 const RECORD = 60; // seconds between frames of the record
-const KEEP = 35 * 60; // seconds a frame is kept, a little over what the page plays back
+const KEEP = 65 * 60; // seconds a frame is kept, a little over what the page plays back
 const RECENT = 180; // seconds old the last frame can be for the record to be worth playing
 
 const seconds = () => Date.now() / 1000;

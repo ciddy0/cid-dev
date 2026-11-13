@@ -1,8 +1,8 @@
 // Where the trains are. A feed is a function from the time (in seconds) to a list of
 // { id, line, from, to, progress, load }: a train of `line` between two neighbouring stations,
-// `progress` (0 → 1) of the way along, carrying `load`, up to SEATS passengers, each a shape
-// from SHAPES. This one comes from the timetable; the live one in live.js returns the same
-// thing.
+// `progress` (0 → 1) of the way along, carrying `load`, who is in each of its SEATS: a shape
+// from SHAPES, or null for an empty one. This one comes from the timetable; the live one in
+// live.js returns the same thing.
 import { clamp, easeInOutQuad } from "./math.js";
 
 const SPEED = 40; // timetable seconds per real second
@@ -10,6 +10,7 @@ const DWELL = 20; // timetable seconds a train stands at each station
 const TURN = 180; // and at the end of the line before heading back
 export const SEATS = 6; // passengers a car holds, two abreast
 export const SHAPES = ["circle", "triangle", "square"];
+export const NOBODY = Array(SEATS).fill(null); // the load of an empty car
 
 // A line's two runs, out and back, each a list of hops between neighbouring stations: who from,
 // who to, when (timetable seconds into the run) and the `legs` of track ridden, as
@@ -59,20 +60,34 @@ export function runs(line, tracks, rails) {
   );
 }
 
-// The passengers of train number `train` after `stop` stops. They are made up: each seat's rider
-// stays on for a few stops, then leaves it to another or to nobody.
+// The passengers of train number `train` after `stop` stops, seat by seat. They are made up:
+// each seat's rider stays on for a few stops, then leaves it to another or to nobody.
 const dice = (...seed) =>
   seed.reduce((h, v) => Math.imul(h ^ v, 0x9e3779b1) ^ (h >>> 15), 0x2545f491) >>> 8;
 export const riders = (train, stop) =>
   Array.from({ length: SEATS }, (_, seat) => {
     const roll = dice(train, seat, Math.floor((stop + seat * 2) / (3 + seat)));
-    return roll % 5 < 3 ? [SHAPES[(roll >> 4) % SHAPES.length]] : [];
-  }).flat();
+    return roll % 5 < 3 ? SHAPES[(roll >> 4) % SHAPES.length] : null;
+  });
+
+// The load `through` (0 → 1) a stop that a train pulls into carrying `was` and out of carrying
+// `now`: one at a time, first those getting off leave their seats, then those getting on take
+// theirs.
+export function exchange(was, now, through) {
+  if (through >= 1) return now;
+  const off = was.flatMap((shape, seat) => (shape && shape !== now[seat] ? [seat] : [])),
+    on = now.flatMap((shape, seat) => (shape && shape !== was[seat] ? [seat] : []));
+  const done = Math.floor(Math.max(0, through) * (off.length + on.length) + 0.5);
+  return was.map((shape, seat) => {
+    if (on.includes(seat) && off.length + on.indexOf(seat) < done) return now[seat];
+    return off.includes(seat) && off.indexOf(seat) < done ? null : shape;
+  });
+}
 
 // The timetable as a feed, for `routes` of { line, runs }. Every train shuttles end to end and
 // back for ever, enough of them a line to keep its daytime frequency, evenly spaced. Between two
-// stations a train stands for DWELL, then eases out and into the next one. Worked out from the
-// clock alone, so there is nothing to keep in step.
+// stations a train stands for DWELL, its passengers getting off and on, then eases out and into
+// the next one. Worked out from the clock alone, so there is nothing to keep in step.
 export function scheduled(routes) {
   return (now) =>
     routes.flatMap(({ line, runs }, r) => {
@@ -84,14 +99,15 @@ export function scheduled(routes) {
           run = runs[t < lap ? 0 : 1];
         const hop = run.findLast((h) => h.dep <= t % lap);
         const stops = Math.floor(clock / lap) * run.length + run.indexOf(hop); // made so far
-        const moved = (t % lap - hop.dep - DWELL) / (hop.arr - hop.dep - DWELL);
+        const stood = (t % lap) - hop.dep,
+          moved = (stood - DWELL) / (hop.arr - hop.dep - DWELL);
         return {
           id: `${line.id}-${k}`,
           line: line.id,
           from: hop.from,
           to: hop.to,
           progress: easeInOutQuad(clamp(moved, 0, 1)),
-          load: riders(r * 1000 + k, stops),
+          load: exchange(riders(r * 1000 + k, stops - 1), riders(r * 1000 + k, stops), stood / DWELL),
         };
       });
     });

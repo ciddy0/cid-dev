@@ -54,7 +54,7 @@ them up, roughly in this order:
 | `camera.js` | the viewBox: drag, pinch, wheel, glides |
 | `label.js` | the station name label and halo |
 | `trains.js` | puts a car wherever a feed says a train is, riding the tracks (`rail.js`) |
-| `live.js` | the live feed: the last half hour run through in a few seconds as the view opens, then the socket to `/live`, cars eased from one snapshot to the next |
+| `live.js` | the live feed: the last hour run through in half a minute as the view opens, every car stopping at its stations to let passengers off and on, then the socket to `/live`, cars eased from one snapshot to the next |
 | `timetable.js` | the fallback feed: where every train is, worked out from the timetable |
 | `menu.js` | the menu and the screens it flies to (map, resume, about, settings); starts and stops the trains |
 | `intro.js` | the lines drawing themselves in as the page opens |
@@ -72,7 +72,7 @@ the page, which is what lets `test/` run them under Node. Keep them that way.
 
 | | |
 | --- | --- |
-| `index.js` | the `/live` websocket, `/live/history`, and the hub: one Durable Object that listens to LA Metro's vehicle positions while anyone is watching and sends every visitor a snapshot each few seconds. Once a minute, watched or not, it stores a snapshot, and keeps 35 minutes of them |
+| `index.js` | the `/live` websocket, `/live/history`, and the hub: one Durable Object that listens to LA Metro's vehicle positions while anyone is watching and sends every visitor a snapshot each few seconds. Once a minute, watched or not, it stores a snapshot, and keeps 65 minutes of them |
 | `adapt.js` | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json` |
 
 The page shows the timetable when there is neither a record nor a snapshot to go on, and again

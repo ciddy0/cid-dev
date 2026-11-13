@@ -53,8 +53,9 @@ const TEXT = {
       <p>Metro streams where every train is. One small server on Cloudflare keeps the only
         connection to it and sends everyone a snapshot every few seconds, so Metro sees one
         visitor no matter how many of you there are.</p>
-      <p>It also saves a snapshot every minute. When you open the map you see the last half hour
-        played back in a few seconds, then it settles into live.</p>
+      <p>It also saves a snapshot every minute. When you open the map you see the last hour
+        played back in half a minute, every train stopping at its stations, then it settles
+        into live.</p>
       <p>Turn on sound and every train that pulls in plays a note.</p>
       <h2>Limitations</h2>
       <p>It's a schematic, not to scale. Distances are squished and stretched to fit.</p>
@@ -143,8 +144,8 @@ const TEXT = {
       <p>Metro transmite dónde está cada tren. Un servidor chiquito en Cloudflare tiene la única
         conexión y le manda a todos una foto cada pocos segundos, así Metro ve un solo visitante
         sin importar cuántos sean.</p>
-      <p>También guarda una foto cada minuto. Al abrir el mapa ves la última media hora en unos
-        segundos, y luego se queda en vivo.</p>
+      <p>También guarda una foto cada minuto. Al abrir el mapa ves la última hora en medio
+        minuto, cada tren parando en sus estaciones, y luego se queda en vivo.</p>
       <p>Si prendes el sonido, cada tren que llega toca una nota.</p>
       <h2>Limitaciones</h2>
       <p>Es un esquema, no está a escala. Las distancias se aprietan y se estiran para que
