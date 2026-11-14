@@ -11,5 +11,8 @@
     "fetch": "node scripts/fetch-gtfs.mjs",
     "build": "node scripts/build-map.mjs",
     "test": "node --test"
+  },
+  "dependencies": {
+    "hyparquet-writer": "^0.18.0"
   }
 }

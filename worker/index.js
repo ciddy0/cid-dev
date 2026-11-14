@@ -1,11 +1,7 @@
-// The Worker in front of the page. Everything is a static asset except /live, a websocket that
-// sends where LA Metro's trains are every few seconds, and /live/history, where they have been
-// over the last hour. One Durable Object, the hub, holds the only sockets to Metro and
-// fans out to every visitor, so Metro sees the same connections however many people are
-// watching. With nobody watching it still looks in once a minute, to keep the record.
 import { DurableObject } from "cloudflare:workers";
 import map from "../public/data/metro.json";
 import { adapter } from "./adapt.js";
+import { SPAN, key, parquet, sample, windowOf } from "./archive.js";
 
 // GTFS-realtime vehicle positions as JSON, a message per vehicle, no API key: every rail
 // vehicle, and the buses of the G Line (route 901).
@@ -28,7 +24,8 @@ const seconds = () => Date.now() / 1000;
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
-    if (pathname !== "/live" && pathname !== "/live/history") return env.ASSETS.fetch(request);
+    if (pathname !== "/live" && pathname !== "/live/history")
+      return env.ASSETS.fetch(request);
     return env.LIVE.get(env.LIVE.idFromName("hub")).fetch(request);
   },
 };
@@ -41,6 +38,7 @@ export class LiveHub extends DurableObject {
   viewers = new Set();
   feeds = FEEDS.map((url) => ({ url, socket: null, tried: 0, since: 0 })); // since: its first word
   trains = new Map(); // vehicle id → where the feed last put it
+  seen = new Map();
   heard = 0; // when Metro last said anything
   woke = 0; // when the hub started listening
   timer = 0;
@@ -51,14 +49,19 @@ export class LiveHub extends DurableObject {
     ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS frames (at INTEGER PRIMARY KEY, trains TEXT NOT NULL)",
     );
+    ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS samples (at INTEGER PRIMARY KEY, vehicles TEXT NOT NULL)",
+    );
     // The record starts with the first visit, and from then on keeps itself going.
     ctx.blockConcurrencyWhile(async () => {
-      if ((await ctx.storage.getAlarm()) == null) await ctx.storage.setAlarm(Date.now());
+      if ((await ctx.storage.getAlarm()) == null)
+        await ctx.storage.setAlarm(Date.now());
     });
   }
 
   fetch(request) {
-    if (new URL(request.url).pathname === "/live/history") return this.history();
+    if (new URL(request.url).pathname === "/live/history")
+      return this.history();
     if (request.headers.get("Upgrade") !== "websocket")
       return new Response("This is a websocket.", { status: 426 });
     const [client, server] = Object.values(new WebSocketPair());
@@ -90,21 +93,64 @@ export class LiveHub extends DurableObject {
       snapshot = this.snapshot(now);
     if (snapshot) {
       const { sql } = this.ctx.storage;
-      sql.exec("INSERT OR REPLACE INTO frames VALUES (?, ?)", Math.round(now), snapshot);
+      sql.exec(
+        "INSERT OR REPLACE INTO frames VALUES (?, ?)",
+        Math.round(now),
+        snapshot,
+      );
       sql.exec("DELETE FROM frames WHERE at < ?", now - KEEP);
+      const rows = [];
+      for (const [id, { heard, ...row }] of this.seen)
+        if (now - heard > RECORD) this.seen.delete(id);
+        else rows.push(row);
+      sql.exec(
+        "INSERT OR REPLACE INTO samples VALUES (?, ?)",
+        Math.round(now),
+        JSON.stringify(rows),
+      );
     }
     if (!this.viewers.size) this.rest();
+    await this.flush(now);
+  }
+
+  async flush(now) {
+    const { sql } = this.ctx.storage;
+    const first = sql.exec("SELECT MIN(at) AS at FROM samples").one().at;
+    if (first == null) return;
+    const start = windowOf(first),
+      end = start + SPAN;
+    if (end > now) return;
+    try {
+      const rows = sql
+        .exec("SELECT at, vehicles FROM samples WHERE at < ? ORDER BY at", end)
+        .toArray()
+        .flatMap(({ at, vehicles }) =>
+          JSON.parse(vehicles).map((row) => ({ sampled_at: at, ...row })),
+        );
+      await this.env.ARCHIVE.put(key(start), parquet(rows));
+      sql.exec("DELETE FROM samples WHERE at < ?", end);
+    } catch (error) {
+      console.error("archive:", error);
+    }
   }
 
   history() {
     const now = seconds();
     const rows = this.ctx.storage.sql
-      .exec("SELECT at, trains FROM frames WHERE at >= ? ORDER BY at", now - KEEP)
+      .exec(
+        "SELECT at, trains FROM frames WHERE at >= ? ORDER BY at",
+        now - KEEP,
+      )
       .toArray();
     const frames = now - rows.at(-1)?.at <= RECENT ? rows : [];
     return new Response(
       `{"now":${Math.round(now)},"frames":[${frames.map((row) => `{"at":${row.at},"trains":${row.trains}}`)}]}`,
-      { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=20" } },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "max-age=20",
+        },
+      },
     );
   }
 
@@ -112,7 +158,10 @@ export class LiveHub extends DurableObject {
   connect(now) {
     this.woke ||= now;
     for (const feed of this.feeds)
-      if (!(feed.socket?.readyState <= WebSocket.OPEN) && now - feed.tried >= RETRY)
+      if (
+        !(feed.socket?.readyState <= WebSocket.OPEN) &&
+        now - feed.tried >= RETRY
+      )
         this.listen(feed, now);
   }
 
@@ -121,10 +170,11 @@ export class LiveHub extends DurableObject {
     const socket = (feed.socket = new WebSocket(feed.url));
     socket.addEventListener("message", ({ data }) => {
       if (feed.socket !== socket) return; // hung up on, with messages still on their way
-      let message, train;
+      let message, train, row;
       try {
         message = JSON.parse(data);
         train = this.adapt(message);
+        row = sample(message);
       } catch {
         return;
       }
@@ -138,6 +188,7 @@ export class LiveHub extends DurableObject {
       // whose report is minutes old (one standing at the end of the line, say), and it's there.
       if (train) this.trains.set(train.id, { ...train, heard: this.heard });
       else this.trains.delete(message.id);
+      if (row) this.seen.set(row.vehicle_id, { ...row, heard: this.heard });
     });
     socket.addEventListener("error", () => {}); // `connect` tries again
   }
@@ -145,10 +196,14 @@ export class LiveHub extends DurableObject {
   // The trains as JSON, less the ones that have gone, or nothing while Metro hasn't been heard
   // from, not for a while or not yet: every feed gets its say first, if it answers in time.
   snapshot(now) {
-    for (const [id, train] of this.trains) if (now - train.heard > GONE) this.trains.delete(id);
-    const said = ({ since }) => (since ? now - since >= ROUND : now - this.woke >= WARM);
+    for (const [id, train] of this.trains)
+      if (now - train.heard > GONE) this.trains.delete(id);
+    const said = ({ since }) =>
+      since ? now - since >= ROUND : now - this.woke >= WARM;
     if (now - this.heard > QUIET || !this.feeds.every(said)) return null;
-    return JSON.stringify(Array.from(this.trains.values(), ({ seen, heard, ...train }) => train));
+    return JSON.stringify(
+      Array.from(this.trains.values(), ({ seen, heard, ...train }) => train),
+    );
   }
 
   // Keeps the feeds up and sends everyone (or just `to`, who has only now joined) a snapshot.
@@ -174,6 +229,7 @@ export class LiveHub extends DurableObject {
       Object.assign(feed, { socket: null, tried: 0, since: 0 });
     }
     this.trains.clear();
+    this.seen.clear();
     this.heard = this.woke = 0;
   }
 }
