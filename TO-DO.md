@@ -135,6 +135,22 @@ with a catch-up: the last 60 minutes in 30 s, every car calling at its stations,
 - [ ] Check Metro's terms of use / rate limits; the API has `/login` + `/token`, so the socket may
       need auth one day — the fallback keeps the page working if it does
 
+## 10. The archive
+What Metro's feed says about every vehicle, a sample a minute, kept in R2 as Parquet, for a
+weekly page of numbers. How it works and how to look at it: "The archive" in `README.md`.
+- [x] `worker/archive.js` and the hub: a sample a minute into SQLite, a file to R2 every six hours
+- [x] Deployed 2026-11-14; the first file came at 00:00 UTC and reads back in DuckDB
+- [ ] Check-up, around 2026-11-18: the six questions under "Check-up" in `README.md`
+- [ ] Timetables: a trip id only matches the `stop_times.txt` of its own day (79 of 79 rail
+      trips, against 37 of 79 in a copy four days old). Fetch each day's from the history of
+      gitlab.com/LACMTA/gtfs_rail, or have the hub keep a copy
+- [ ] The numbers: a weekly GitHub Action runs DuckDB over the week's files and the timetable
+      and writes `stats/latest.json` to R2: stops made per train and per line, arrivals 5+
+      minutes late, and how much of the week is missing
+- [ ] The page: `public/stats.html`, reading that JSON through a route of the Worker
+- [ ] `wrangler.jsonc` binds the bucket twice (`cid_dev_metro`, which `wrangler r2 bucket
+      create` added); drop the second
+
 ---
 
 ## Later / maybe
