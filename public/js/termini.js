@@ -6,7 +6,7 @@
 import { lineEnds, segDist, toD } from "./geometry.js";
 import { round } from "./math.js";
 
-const TURNS = [0, 1, -1, 2, -2, 3, -3]; // headings to try, in 45° steps off straight on
+const TURNS = [0, 1, -1, 2, -2, 3, -3];
 
 // The T for every end of every line's main track, as { line, track, at, d, corners, trim }: the
 // track it caps and the index in track.pts of the end it is at, the path data to stroke, the
@@ -16,7 +16,7 @@ const TURNS = [0, 1, -1, 2, -2, 3, -3]; // headings to try, in 45° steps off st
 export function termini(tracks, lane) {
   const stem = lane * 2.2,
     bar = lane * 1.4,
-    skip = lane * 1.5; // the stem's first stretch sits under the station, where lines do meet
+    skip = lane * 1.5;
 
   const ends = tracks
     .filter((track) => !track.extra)
@@ -40,7 +40,6 @@ export function termini(tracks, lane) {
       [tip[0] + dy * reach[0], tip[1] - dx * reach[0]],
       [tip[0] - dy * reach[1], tip[1] + dx * reach[1]],
     ];
-    // A stem that turns leaves the line on an arc taking up its first half.
     const cut = stem / 2;
     const from = [round(e.x - e.dx * cut), round(e.y - e.dy * cut)];
     return {
@@ -58,9 +57,8 @@ export function termini(tracks, lane) {
     };
   };
 
-  const placed = []; // segments of the Ts settled so far
+  const placed = [];
   return ends.map((e) => {
-    // How far the bar can reach each side before meeting a neighbour ending alongside.
     const reach = [bar, bar];
     for (const o of ends) {
       const across = (o.y - e.y) * e.dx - (o.x - e.x) * e.dy,
@@ -72,7 +70,6 @@ export function termini(tracks, lane) {
     }
     const shared = reach.some((v) => v < bar);
 
-    // In the way: other lines, the straight-on stems of their ends, and the Ts already drawn.
     const blocks = [
       ...tracks
         .filter((t) => t.line !== e.line)
@@ -88,7 +85,8 @@ export function termini(tracks, lane) {
     const clear = (t) =>
       t.segs.every((a) => blocks.every((b) => segDist(a, b) > lane - 1e-6));
     const t =
-      (!shared && TURNS.map((turn) => tee(e, turn)).find(clear)) || tee(e, 0, reach);
+      (!shared && TURNS.map((turn) => tee(e, turn)).find(clear)) ||
+      tee(e, 0, reach);
     placed.push(...t.segs);
     return {
       line: e.line,

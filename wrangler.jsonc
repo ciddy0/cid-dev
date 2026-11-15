@@ -1,42 +1,40 @@
 {
-	"name": "cid-dev",
-	"main": "worker/index.js",
-	"compatibility_date": "2026-11-01",
-	"assets": {
-		"directory": "./public",
-		"binding": "ASSETS"
-	},
-	"durable_objects": {
-		"bindings": [
-			{
-				"name": "LIVE",
-				"class_name": "LiveHub"
-			}
-		]
-	},
-	"r2_buckets": [
-		{
-			"binding": "ARCHIVE",
-			"bucket_name": "cid-dev-metro"
-		},
-		{
-			"bucket_name": "cid-dev-metro",
-			"binding": "cid_dev_metro",
-			"remote": true
-		}
-	],
-	"migrations": [
-		{
-			"tag": "v1",
-			"new_sqlite_classes": [
-				"LiveHub"
-			]
-		}
-	],
-	"routes": [
-		{
-			"pattern": "cid.dev",
-			"custom_domain": true
-		}
-	]
+  "name": "cid-dev",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "LIVE",
+        "class_name": "LiveHub"
+      }
+    ]
+  },
+  "r2_buckets": [
+    {
+      "binding": "ARCHIVE",
+      "bucket_name": "cid-dev-metro"
+    },
+    {
+      "bucket_name": "cid-dev-metro",
+      "binding": "cid_dev_metro",
+      "remote": true
+    }
+  ],
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["LiveHub"]
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "cid.dev",
+      "custom_domain": true
+    }
+  ]
 }

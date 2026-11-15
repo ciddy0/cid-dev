@@ -21,6 +21,11 @@
   /* Round words that sit straight on the map, so they read over the lines behind. */
   --glow: 0 0 3px var(--bg), 0 0 8px var(--bg), 0 0 14px var(--bg);
   --dim: 0.4; /* what is waiting, or can't be pressed */
+  --quiet: 0.72; /* words that sit back behind the ones beside them */
+  --quick: 0.12s; /* a label's fade, and a hover's */
+  --slow: 0.5s; /* the coast and the stations, coming and going */
+  --back: 48px; /* the back arrow's box */
+  --back-gap: 10px; /* and how far in from the corner it sits */
   --font:
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
@@ -102,7 +107,7 @@ main {
 /* The ocean, under everything. Settings can turn it off (`.bare`). */
 #coast {
   fill: var(--ocean);
-  transition: opacity 0.5s;
+  transition: opacity var(--slow);
 }
 .bare #coast {
   opacity: 0;
@@ -123,7 +128,7 @@ main {
 #stations,
 #trains {
   opacity: 0;
-  transition: opacity 0.5s;
+  transition: opacity var(--slow);
 }
 .viewing #stations,
 .viewing #trains {
@@ -168,7 +173,7 @@ main {
   fill: none;
   stroke: var(--halo);
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity var(--quick);
   pointer-events: none;
 }
 #halo.on {
@@ -196,7 +201,7 @@ main {
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity var(--quick);
 }
 #label.on {
   opacity: 1;
@@ -268,9 +273,10 @@ button:focus-visible {
   will-change: transform;
 }
 #menu {
+  --between: 0.14em; /* one item and the next */
   place-content: center;
   justify-items: start;
-  gap: 0.14em;
+  gap: var(--between);
   font-size: clamp(28px, 5.5vmin, 44px);
   font-weight: 700;
   line-height: 1.12;
@@ -300,7 +306,7 @@ button:focus-visible {
 #menu button::before {
   content: "";
   position: absolute;
-  inset: -0.07em -0.3em;
+  inset: calc(var(--between) / -2) -0.3em;
 }
 /* Hovers are for a mouse: a finger's would stick after the tap. */
 @media (hover: hover) {
@@ -317,15 +323,15 @@ button:focus-visible {
 
 #back {
   position: fixed;
-  left: calc(10px + env(safe-area-inset-left));
-  top: calc(10px + env(safe-area-inset-top));
+  left: calc(var(--back-gap) + env(safe-area-inset-left));
+  top: calc(var(--back-gap) + env(safe-area-inset-top));
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: var(--back);
+  height: var(--back);
   font-size: 32px;
   filter: drop-shadow(0 0 3px var(--bg));
-  transition: transform 0.12s;
+  transition: transform var(--quick);
 }
 @media (hover: hover) {
   #back:hover {
@@ -337,10 +343,11 @@ button:focus-visible {
   transform: scale(0.95);
 }
 
+/* A screen starts clear of the back arrow. */
 .screen {
   place-items: center;
-  padding: calc(68px + env(safe-area-inset-top)) 16px
-    calc(16px + env(safe-area-inset-bottom));
+  padding: calc(var(--back) + 2 * var(--back-gap) + env(safe-area-inset-top))
+    16px calc(16px + env(safe-area-inset-bottom));
 }
 /* The resume: the jobs along a line across the screen, oldest on the left. A card sits
    still on the middle of the line and the strip of jobs slides over it (resume.js): the job
@@ -361,13 +368,21 @@ button:focus-visible {
   --name: 2.4em; /* a name's row */
   --row: 2.2em; /* the row the line runs through, under the names */
   --band: 0.8em; /* how thick the line is */
-  --pic: calc((var(--s) - 2 * var(--side)) * 2 / 3); /* how tall a job's picture is, to its width */
+  --pic: calc(
+    (var(--s) - 2 * var(--side)) * 2 / 3
+  ); /* how tall a job's picture is, to its width */
   --foot: 1.5em; /* the room left under the card */
-  --rest: calc(var(--pad) + var(--name) + var(--row) + var(--pic) + var(--side)); /* the card, but for its words */
+  --rest: calc(
+    var(--pad) + var(--name) + var(--row) + var(--pic) + var(--side)
+  ); /* the card, but for its words */
   /* The room for a job's words under it, the same for every job. On a short screen it gives
      up its slack, down to what the longest job needs, so the whole card still shows. */
   --words: clamp(16.5em, 100cqh - var(--rest) - var(--foot), 18.5em);
   --card: calc(var(--rest) + var(--words)); /* how tall the card is */
+  --slide: 0.35s; /* the strip's move from one job to the next */
+  --shut: 0.07s; /* a job closing as it leaves the card */
+  --open: 0.13s; /* and the picked one opening, */
+  --landing: 0.22s; /* once the strip has all but set it down */
   display: grid;
   grid-template-columns: 100%;
   align-content: start;
@@ -376,17 +391,12 @@ button:focus-visible {
   overscroll-behavior: contain;
   scrollbar-width: none;
   /* The line runs 30vh down the screen, or higher where the card needs the room. */
-  padding: max(0px, min(30vh - 9em, 100cqh - var(--card) - var(--foot))) 0 var(--foot);
+  padding: max(0px, min(30vh - 9em, 100cqh - var(--card) - var(--foot))) 0
+    var(--foot);
   font-size: 15px;
   line-height: 1.45;
   touch-action: pan-y;
   pointer-events: auto;
-}
-/* On the narrowest screens the words wrap onto more lines, and need all of this. */
-@media (max-width: 349px) {
-  .jobs {
-    --words: 19em;
-  }
 }
 /* The line, the card on it and the jobs over both. */
 .jobs::before,
@@ -417,7 +427,7 @@ button:focus-visible {
   margin-left: 50%;
   overflow-y: clip;
   translate: calc(var(--drag, 0px) - (var(--at, 0) + 0.5) * var(--step));
-  transition: translate 0.35s ease-out;
+  transition: translate var(--slide) ease-out;
 }
 .strip.dragging {
   transition: none;
@@ -440,8 +450,9 @@ button:focus-visible {
 .full,
 .skills {
   pointer-events: auto;
-  transition: 0.07s;
-  transition-property: opacity, visibility, color, text-shadow, background-color;
+  transition: var(--shut);
+  transition-property:
+    opacity, visibility, color, text-shadow, background-color;
 }
 .job h2,
 .pic {
@@ -475,14 +486,12 @@ button:focus-visible {
   height: var(--pic);
   margin-top: var(--row);
   opacity: var(--dim);
+  --water: color-mix(in srgb, var(--line-a) 55%, #bfe9f5);
 }
 @media (hover: hover) {
   .job:hover:not(.on) .pic {
     opacity: 0.6;
   }
-}
-.pic {
-  --water: color-mix(in srgb, var(--line-a) 55%, #bfe9f5);
 }
 .pic :is(polyline, .line) {
   fill: none;
@@ -493,11 +502,11 @@ button:focus-visible {
 /* The water only shows on the card: a waiting job's picture is just its lines. */
 .pic :is(.water, .river) {
   opacity: 0;
-  transition: opacity 0.07s;
+  transition: opacity var(--shut);
 }
 .job.on .pic :is(.water, .river) {
   opacity: 1;
-  transition: opacity 0.13s 0.22s;
+  transition: opacity var(--open) var(--landing);
 }
 .pic .water {
   fill: var(--water);
@@ -521,7 +530,8 @@ button:focus-visible {
    at the card's foot. */
 .full {
   position: absolute;
-  inset: calc(var(--pad) + var(--name) + var(--row) + var(--pic)) var(--side) auto;
+  inset: calc(var(--pad) + var(--name) + var(--row) + var(--pic)) var(--side)
+    auto;
   display: flex;
   flex-direction: column;
   height: var(--words);
@@ -533,8 +543,8 @@ button:focus-visible {
 /* The picked job opens as the strip sets it down on the card: its words come up under its
    name. */
 .job.on :is(h2, .pic, .full, .skills) {
-  transition-duration: 0.13s;
-  transition-delay: 0.22s;
+  transition-duration: var(--open);
+  transition-delay: var(--landing);
 }
 .job.on h2 {
   color: var(--label-ink);
@@ -584,18 +594,6 @@ button:focus-visible {
   border-radius: 50%;
   background: var(--c);
 }
-/* On the narrowest screens the skills shrink to stay on their one row, which smaller letters
-   centre without the nudge. */
-@media (max-width: 349px) {
-  .skills {
-    gap: 0.5em;
-    translate: none;
-  }
-  .skill {
-    gap: 0.3em;
-    font-size: 0.69em;
-  }
-}
 .job p {
   margin: 0;
   font-size: 0.93em;
@@ -606,7 +604,7 @@ button:focus-visible {
   line-height: 1.3;
 }
 .full p:not(.role) {
-  opacity: 0.72;
+  opacity: var(--quiet);
 }
 /* A job says what it was in three lines at most, so no job outgrows the card. */
 .full p.blurb {
@@ -617,13 +615,6 @@ button:focus-visible {
   margin-top: 0.7em;
   overflow: hidden;
   opacity: 0.88;
-}
-/* On the narrowest screens the same words wrap onto more lines, which the room made for them
-   there (--words) is for. */
-@media (max-width: 349px) {
-  .full p.blurb {
-    -webkit-line-clamp: 5;
-  }
 }
 .full p.stat {
   display: flex;
@@ -638,7 +629,26 @@ button:focus-visible {
   letter-spacing: -0.02em;
 }
 .stat span {
-  opacity: 0.72;
+  opacity: var(--quiet);
+}
+/* On the narrowest screens a job's words wrap onto more lines: the card gives them more room and
+   the blurb as many lines as it takes. The skills shrink to stay on their one row, which smaller
+   letters centre without the nudge. */
+@media (max-width: 349px) {
+  .jobs {
+    --words: 19em;
+  }
+  .skills {
+    gap: 0.5em;
+    translate: none;
+  }
+  .skill {
+    gap: 0.3em;
+    font-size: 0.69em;
+  }
+  .full p.blurb {
+    -webkit-line-clamp: 5;
+  }
 }
 /* The docs: a column of bold headings and short lines down the middle, like a game's credits,
    straight on the map. The --bg glow keeps it readable over the lines behind. */
@@ -674,8 +684,11 @@ button:focus-visible {
 .settings {
   display: grid;
   width: min(100%, 24em);
+  --ctl: 1.7em; /* a switch's mark, and a stepper's arrow */
+  --row-pad: 0.15em; /* over and under a row */
+  --row-gap: 0.35em; /* and between two */
   grid-template-columns: 1fr 1fr;
-  gap: 0.35em 0.7em;
+  gap: var(--row-gap) 0.7em;
   font-size: clamp(19px, 3.6vmin, 26px);
   letter-spacing: -0.01em;
   pointer-events: auto;
@@ -685,11 +698,12 @@ button:focus-visible {
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: center;
-  padding: 0.15em 0;
+  padding: var(--row-pad) 0;
   text-align: right;
 }
 /* A switch and a stepper's arrow can be pressed out to halfway to the next row, which makes
-   each a finger tall on a phone without moving anything. */
+   each a finger tall on a phone without moving anything. An arrow is a row less its padding, so
+   has that to make up too. */
 .switch,
 .stepper button {
   position: relative;
@@ -698,17 +712,17 @@ button:focus-visible {
 .stepper button::after {
   content: "";
   position: absolute;
-  inset: -0.175em 0;
+  inset: calc(var(--row-gap) / -2) 0;
 }
 .stepper button::after {
-  inset: -0.325em;
+  inset: calc(var(--row-gap) / -2 - var(--row-pad));
 }
 
 .switch::after {
   content: "";
-  width: calc(1.7em * 26 / 24);
-  height: calc(1.7em * 26 / 24);
-  margin: calc(1.7em / -24);
+  width: calc(var(--ctl) * 26 / 24);
+  height: calc(var(--ctl) * 26 / 24);
+  margin: calc(var(--ctl) / -24);
   background: currentColor;
   mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 26 26"><path fill-rule="evenodd" d="M0 12a12 12 0 1 0 24 0a12 12 0 1 0-24 0ZM12 10.162L14.881 7.281A1.3 1.3 0 0 1 16.719 9.119L13.838 12L16.719 14.881A1.3 1.3 0 0 1 14.881 16.719L12 13.838L9.119 16.719A1.3 1.3 0 0 1 7.281 14.881L10.162 12L7.281 9.119A1.3 1.3 0 0 1 9.119 7.281Z"/></svg>')
     center / contain no-repeat;
@@ -729,8 +743,8 @@ button:focus-visible {
 .stepper button {
   display: grid;
   place-items: center;
-  width: 1.7em;
-  height: 1.7em;
+  width: var(--ctl);
+  height: var(--ctl);
 }
 .stepper button::before {
   content: "";
@@ -756,6 +770,6 @@ button:focus-visible {
   margin: 0;
   padding: 24px;
   font-size: 14px;
-  opacity: 0.72; /* as quiet as a job's second line */
+  opacity: var(--quiet);
   text-align: center;
 }

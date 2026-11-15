@@ -11,19 +11,24 @@ Deploys with `npx wrangler deploy` like the gag page. See `README.md` for where 
 ---
 
 ## 1. Setup
+
 - [x] `git init`, add `.gitignore` (`node_modules/`, `.wrangler/`, `data/raw/`)
 - [x] Move the gag page to `public/meow.html` so it lives on at cid.dev/meow
 - [x] Create `scripts/`, `data/raw/`, `public/data/`
 
 ## 2. Get the data
+
 Source: LA Metro rail GTFS — https://gitlab.com/LACMTA/gtfs_rail
+
 - [x] Script `scripts/fetch-gtfs.mjs` that downloads `routes.txt`, `trips.txt`, `stops.txt`,
       `stop_times.txt`, `shapes.txt` into `data/raw/`
 - [x] Note the feed date in the output so it's obvious when it's stale
 - [x] Decide scope: rail only for v1 (A, B, C, D, E, K). G/J busways maybe later as dashed lines
 
 ## 3. Process into map data
+
 Script `scripts/build-map.mjs` → writes `public/data/metro.json`
+
 - [x] For each route: pick the longest/most common shape as the canonical path
 - [x] Get the ordered station list per line (from a representative trip's `stop_times`)
 - [x] Merge platforms into one station by `parent_station` (e.g. 7th St/Metro, Union Station)
@@ -33,16 +38,18 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [x] Keep the JSON small: lines, ordered station ids, station names + x/y, transfer flags
 
 ## 4. Schematize (the hard/fun part)
+
 - [x] Simplify each line to just its stations (drop the wiggly shape points)
 - [x] Snap each segment to octilinear directions (0/45/90/135°), adding one bend where needed
 - [x] Nudge stations to keep min spacing so labels don't collide
 - [x] Offset parallel lines where they share track (A/E downtown, B/D trunk) so both colors show
 - [x] Draw the A Line's one-way Long Beach loop (`extraPaths` in metro.json) without it looking messy
 - [x] Allow a hand-tuned override file (`data/overrides.json`) for stations that look bad
-- [x] Sanity check: it should still *feel* like LA — Santa Monica left, Long Beach bottom,
+- [x] Sanity check: it should still _feel_ like LA — Santa Monica left, Long Beach bottom,
       North Hollywood top, Pomona/APU far right
 
 ## 5. Render (static first)
+
 - [x] `public/index.html` + `public/js/` load `metro.json` and draw an SVG
 - [x] Lines: thick strokes, round caps/joins, line color
 - [x] Stations: white circles with colored outline; transfers as bigger white circles / pills
@@ -52,6 +59,7 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
       readable size and zooms out as far as the whole map
 
 ## 6. Animate
+
 - [x] Intro: lines draw in one after another (`stroke-dashoffset`, `public/js/intro.js`), each
       T popping in as its line reaches it. Stations stay hidden until the view screen
 - [ ] Stations pop in as the view screen opens
@@ -62,6 +70,7 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [ ] Respect `prefers-reduced-motion` (skip intro, slow/stop trains)
 
 ## 7. Polish
+
 - [ ] Pick a typeface for labels (clean sans; self-host or system stack)
 - [ ] Tiny corner signature: "cid" + a couple links
 - [ ] Favicon (a station dot?)
@@ -69,14 +78,17 @@ Script `scripts/build-map.mjs` → writes `public/data/metro.json`
 - [ ] Check performance on a phone — keep it smooth at 60fps
 
 ## 8. Ship
+
 - [ ] `npx wrangler deploy`
 - [ ] Check cid.dev on desktop + phone, check cid.dev/meow still works
 
 ## 9. Live trains
+
 Diagram: `docs/live-trains-architecture.svg`. One Durable Object holds the only sockets to Metro
 (rail, and the G Line's buses) and fans out to every visitor, so Metro sees the same two
 connections however many people are watching. Live trains run at real speed, so the view opens
 with a catch-up: the last 60 minutes in 30 s, every car calling at its stations, slowing into now.
+
 - [x] Find a keyless feed: `wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions` streams GTFS-rt
       vehicle positions every 3s, no API key (optionally filter: `/ws/LACMTA_Rail/vehicle_positions/801,802`)
 - [ ] Note: the REST `trip_detail/route_code/{route}` endpoints returned `[]` while the socket
@@ -136,8 +148,10 @@ with a catch-up: the last 60 minutes in 30 s, every car calling at its stations,
       need auth one day — the fallback keeps the page working if it does
 
 ## 10. The archive
+
 What Metro's feed says about every vehicle, a sample a minute, kept in R2 as Parquet, for a
 weekly page of numbers. How it works and how to look at it: "The archive" in `README.md`.
+
 - [x] `worker/archive.js` and the hub: a sample a minute into SQLite, a file to R2 every six hours
 - [x] Deployed 2026-11-14; the first file came at 00:00 UTC and reads back in DuckDB
 - [ ] Check-up, around 2026-11-18: the six questions under "Check-up" in `README.md`
@@ -148,12 +162,13 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
       and writes `stats/latest.json` to R2: stops made per train and per line, arrivals 5+
       minutes late, and how much of the week is missing
 - [ ] The page: `public/stats.html`, reading that JSON through a route of the Worker
-- [ ] `wrangler.jsonc` binds the bucket twice (`cid_dev_metro`, which `wrangler r2 bucket
-      create` added); drop the second
+- [ ] `wrangler.jsonc` binds the bucket twice (`cid_dev_metro`, which
+      `wrangler r2 bucket create` added); drop the second
 
 ---
 
 ## Later / maybe
+
 - [x] G busway line, drawn as a full line like on Metro's own map
 - [ ] J busway line
 - [ ] Future extensions as faint dotted lines ("coming soon")
@@ -168,7 +183,9 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
       on the top edge of the window
 
 ## From the code review (unverified, 2026-11-12)
+
 Live map — a visitor could see these:
+
 - [ ] Stalled feed never redialled (`connect()` in `worker/index.js`): a Metro socket that goes
       quiet but stays open counts as healthy while anyone is watching. Needs a per-feed
       staleness check
@@ -177,6 +194,7 @@ Live map — a visitor could see these:
       fresh for another 2 min before the timetable takes over
 
 Build scripts — only when the data is refreshed:
+
 - [ ] `extract()` in `scripts/fetch-gtfs.mjs` never checks `unzip`'s exit status: a bad
       download writes empty bus tables and the build drops the G Line without a word
 - [ ] `head()` in `scripts/fetch-gtfs.mjs` doesn't check `res.ok`, and runs after the raw data
@@ -187,6 +205,7 @@ Build scripts — only when the data is refreshed:
       end of `back`: stations only the way back serves, at either terminus, are dropped
 
 Latent or minor:
+
 - [ ] `snapshot()` in `worker/index.js` compares `now - this.woke >= WARM` right after a
       `setTimeout(WARM)`: a timer a millisecond early loses that minute's record frame
 - [ ] `moved` in `public/js/timetable.js` divides by `hop.arr - hop.dep - DWELL`: a hop of 20s

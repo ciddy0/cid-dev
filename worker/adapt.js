@@ -3,6 +3,8 @@
 // test/ runs it under Node.
 
 const KM_PER_DEG = 111.32;
+const UNDER_WAY = [0.05, 0.95];
+const SOMEWHERE = 0.5;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
 
 // A line's stations in the order each direction calls at them: direction 0 end to end, and
@@ -25,12 +27,15 @@ function ways(line) {
 export function adapter(map) {
   const { lat0, lon0 } = map.projection;
   const east = KM_PER_DEG * Math.cos((lat0 * Math.PI) / 180);
-  const lines = new Map(map.lines.map((line) => [line.route, { id: line.id, ways: ways(line) }]));
+  const lines = new Map(
+    map.lines.map((line) => [line.route, { id: line.id, ways: ways(line) }]),
+  );
 
   return ({ id, route_code, vehicle } = {}) => {
     const line = lines.get(route_code),
       way = line?.ways[vehicle?.trip?.directionId ?? 0];
-    const k = way?.indexOf(map.platforms[vehicle?.stopId] ?? vehicle?.stopId) ?? -1;
+    const k =
+      way?.indexOf(map.platforms[vehicle?.stopId] ?? vehicle?.stopId) ?? -1;
     if (k < 0) return null;
     const train = { id, line: line.id, seen: +vehicle.timestamp };
     // At, or on its way to, the stop its trip starts from.
@@ -43,8 +48,15 @@ export function adapter(map) {
     const { latitude, longitude } = vehicle.position ?? {};
     const x = (longitude - lon0) * east,
       y = -(latitude - lat0) * KM_PER_DEG;
-    const along = ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2);
-    // Under way, so never quite at either end.
-    return { ...hop, progress: +clamp(Number.isFinite(along) ? along : 0.5, 0.05, 0.95).toFixed(3) };
+    const along =
+      ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) /
+      ((bx - ax) ** 2 + (by - ay) ** 2);
+    return {
+      ...hop,
+      progress: +clamp(
+        Number.isFinite(along) ? along : SOMEWHERE,
+        ...UNDER_WAY,
+      ).toFixed(3),
+    };
   };
 }

@@ -6,8 +6,6 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <!-- What a phone paints behind its status bar and toolbar. js/prefs.js keeps it the page's
-         background, night or day. -->
     <meta name="theme-color" content="#0c0e12" />
     <title>cid.dev</title>
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
@@ -26,21 +24,24 @@
         <path d="M2 12h18M11.5 4.5 19.5 12l-8 7.5" />
       </symbol>
     </svg>
-    <!-- Out of sight until js/menu.js has a map to fly over. -->
     <nav id="menu" class="waiting" data-t-label="menu">
       <button data-go="view">
-        <svg class="arrow" aria-hidden="true"><use href="#arrow" /></svg><span data-t="view"></span>
+        <svg class="arrow" aria-hidden="true"><use href="#arrow" /></svg
+        ><span data-t="view"></span>
       </button>
       <button data-go="resume">
-        <svg class="arrow" aria-hidden="true" style="--turn: -45deg"><use href="#arrow" /></svg
+        <svg class="arrow" aria-hidden="true" style="--turn: -45deg">
+          <use href="#arrow" /></svg
         ><span data-t="resume"></span>
       </button>
       <button data-go="docs">
-        <svg class="arrow" aria-hidden="true" style="--turn: 45deg"><use href="#arrow" /></svg
+        <svg class="arrow" aria-hidden="true" style="--turn: 45deg">
+          <use href="#arrow" /></svg
         ><span data-t="docs"></span>
       </button>
       <button data-go="settings">
-        <svg class="arrow" aria-hidden="true" style="--turn: 90deg"><use href="#arrow" /></svg
+        <svg class="arrow" aria-hidden="true" style="--turn: 90deg">
+          <use href="#arrow" /></svg
         ><span data-t="settings"></span>
       </button>
     </nav>
@@ -48,7 +49,6 @@
       <svg class="arrow" aria-hidden="true"><use href="#arrow" /></svg>
     </button>
 
-    <!-- Every data-t and data-t-label names its words in js/lang.js. -->
     <section class="screen" id="resume" data-t-label="resume" hidden>
       <div class="jobs">
         <div class="strip"></div>
@@ -67,11 +67,36 @@
             <button data-by="1" data-t-label="next"></button>
           </span>
         </div>
-        <button class="row switch" role="switch" data-pref="night" data-t="night"></button>
-        <button class="row switch" role="switch" data-pref="colorblind" data-t="colorblind"></button>
-        <button class="row switch" role="switch" data-pref="coast" data-t="coast"></button>
-        <button class="row switch" role="switch" data-pref="motion" data-t="motion"></button>
-        <button class="row switch" role="switch" data-pref="sound" data-t="sound"></button>
+        <button
+          class="row switch"
+          role="switch"
+          data-pref="night"
+          data-t="night"
+        ></button>
+        <button
+          class="row switch"
+          role="switch"
+          data-pref="colorblind"
+          data-t="colorblind"
+        ></button>
+        <button
+          class="row switch"
+          role="switch"
+          data-pref="coast"
+          data-t="coast"
+        ></button>
+        <button
+          class="row switch"
+          role="switch"
+          data-pref="motion"
+          data-t="motion"
+        ></button>
+        <button
+          class="row switch"
+          role="switch"
+          data-pref="sound"
+          data-t="sound"
+        ></button>
         <div class="row" role="group" aria-labelledby="volume-name">
           <span id="volume-name" data-t="volume"></span>
           <span class="stepper" data-pref="volume">

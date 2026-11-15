@@ -39,11 +39,32 @@
 //             instead of on top of each other. The shifted lines' stops are then slid along the
 //             track to line up with the station's other stops, so the marker is one straight pill.
 
-import { COMPASS, DIR8, EPS, add, angle, cross, dist, dot, isOctilinear, len, r3, sub, turn, unit } from "./vec.mjs";
+import {
+  COMPASS,
+  DIR8,
+  EPS,
+  add,
+  angle,
+  cross,
+  dist,
+  dot,
+  isOctilinear,
+  len,
+  r3,
+  sub,
+  turn,
+  unit,
+} from "./vec.mjs";
 
 export const LANE = 0.2; // gap between parallel lines, and the stroke width the layout assumes
-export const MIN_SPACING = 0.9; // station centres closer than this are reported
+const MIN_SPACING = 0.9; // station centres closer than this are reported
 const SEED_SCALE = 0.6; // km → units, only used to seed a line with no placed station at all
+const KINK = 0.5; // what a kink at the station either side of a hop costs, against straying from its real bearing
+const SWING = 0.6; // radians the real bearing swings off a walked line's heading before the line turns
+// Tolerances for what has been rounded to 3 decimals (r3), which EPS is too fine for.
+const NEAR = 1e-3; // as close as makes no difference
+const OFF = 2e-3; // how far off its line, or off octilinear, rounding can leave a point or a segment
+const FLAT = 1e-3; // the sine of a turn too slight to be a bend
 
 const hopKey = (a, b) => `${a}>${b}`;
 const edgeKey = (a, b) => (a < b ? hopKey(a, b) : hopKey(b, a)); // the same either way round
@@ -56,24 +77,42 @@ function readOverrides(overrides, lines, stations, problems) {
     key = key.trim();
     if (stations[key]) return key;
     const ids = byName.get(key) ?? [];
-    if (ids.length !== 1) problems.push(`overrides: ${ids.length ? "ambiguous" : "unknown"} station "${key}"`);
+    if (ids.length !== 1)
+      problems.push(
+        `overrides: ${ids.length ? "ambiguous" : "unknown"} station "${key}"`,
+      );
     return ids.length === 1 ? ids[0] : null;
   };
-  const keyed = (obj) => new Map(Object.entries(obj ?? {}).map(([k, v]) => [idOf(k), v]).filter(([k]) => k));
+  const keyed = (obj) =>
+    new Map(
+      Object.entries(obj ?? {})
+        .map(([k, v]) => [idOf(k), v])
+        .filter(([k]) => k),
+    );
 
   const bends = new Map(); // "a>b" → [direction out of a, direction into b (optional)]
   for (const [key, value] of Object.entries(overrides.bends ?? {})) {
-    const [a, b] = key.split(">").map(idOf), dirs = value.split("-").map((c) => COMPASS[c.trim()]);
+    const [a, b] = key.split(">").map(idOf),
+      dirs = value.split("-").map((c) => COMPASS[c.trim()]);
     if (a && b && dirs[0] && dirs.every(Boolean)) bends.set(hopKey(a, b), dirs);
     else problems.push(`overrides: bad bend "${key}": "${value}"`);
   }
-  const pins = keyed(overrides.pins), nudges = keyed(overrides.nudges);
+  const pins = keyed(overrides.pins),
+    nudges = keyed(overrides.nudges);
 
   const lineIds = new Set(lines.map((l) => l.id));
-  const sides = (overrides.sides ?? []).filter(([a, b]) =>
-    (lineIds.has(a) && lineIds.has(b)) || void problems.push(`overrides: unknown line in sides ${a}, ${b}`));
+  const sides = (overrides.sides ?? []).filter(
+    ([a, b]) =>
+      (lineIds.has(a) && lineIds.has(b)) ||
+      void problems.push(`overrides: unknown line in sides ${a}, ${b}`),
+  );
   const shifts = (overrides.shifts ?? [])
-    .map((sh) => ({ at: idOf(sh.at), name: sh.at, lines: sh.lines ?? [], by: sh.by }))
+    .map((sh) => ({
+      at: idOf(sh.at),
+      name: sh.at,
+      lines: sh.lines ?? [],
+      by: sh.by,
+    }))
     .filter((sh) => sh.at);
 
   return { pins, nudges, bends, sides, shifts };
@@ -84,10 +123,16 @@ function readOverrides(overrides, lines, stations, problems) {
 // One-bend route leaving a along d1 and arriving at b along d2, or null if they don't meet.
 function forced(a, b, d1, d2) {
   const d = sub(b, a);
-  const options = (d2 ? [d2] : DIR8).filter((v) => Math.abs(cross(d1, v)) > EPS).map((v) => {
-    const det = cross(d1, v), t1 = cross(d, v) / det, t2 = cross(d1, d) / det;
-    return { t1, t2, bend: add(a, d1, t1), turn: angle(d1, v) };
-  }).filter((o) => o.t1 > EPS && o.t2 > -EPS).sort((p, q) => p.turn - q.turn);
+  const options = (d2 ? [d2] : DIR8)
+    .filter((v) => Math.abs(cross(d1, v)) > EPS)
+    .map((v) => {
+      const det = cross(d1, v),
+        t1 = cross(d, v) / det,
+        t2 = cross(d1, d) / det;
+      return { t1, t2, bend: add(a, d1, t1), turn: angle(d1, v) };
+    })
+    .filter((o) => o.t1 > EPS && o.t2 > -EPS)
+    .sort((p, q) => p.turn - q.turn);
   if (!options.length) return null;
   return options[0].t2 < EPS ? [a, b] : [a, options[0].bend, b];
 }
@@ -98,10 +143,17 @@ function route(a, b, hint = {}) {
   const d = sub(b, a);
   if (isOctilinear(d)) return [a, b];
   const m = Math.min(Math.abs(d[0]), Math.abs(d[1]));
-  const diag = [Math.sign(d[0]) * m, Math.sign(d[1]) * m], rest = sub(d, diag);
-  const cost = ([u, v]) => angle(u, hint.geoIn) + angle(v, hint.geoOut)
-    + 0.5 * (hint.prev ? angle(sub(a, hint.prev), u) : 0) + 0.5 * (hint.next ? angle(v, sub(hint.next, b)) : 0);
-  const [first] = [[diag, rest], [rest, diag]].sort((p, q) => cost(p) - cost(q));
+  const diag = [Math.sign(d[0]) * m, Math.sign(d[1]) * m],
+    rest = sub(d, diag);
+  const cost = ([u, v]) =>
+    angle(u, hint.geoIn) +
+    angle(v, hint.geoOut) +
+    KINK * (hint.prev ? angle(sub(a, hint.prev), u) : 0) +
+    KINK * (hint.next ? angle(v, sub(hint.next, b)) : 0);
+  const [first] = [
+    [diag, rest],
+    [rest, diag],
+  ].sort((p, q) => cost(p) - cost(q));
   return [a, add(a, first[0]), b];
 }
 
@@ -110,28 +162,52 @@ function route(a, b, hint = {}) {
 // "a>b" → the bend points between neighbours a and b (both ways round).
 function place(paths, stations, pins, bends, problems) {
   const geo = (id) => [stations[id].x, stations[id].y];
-  const pos = new Map(pins), via = new Map();
-  const setVia = (a, b, pts) => { via.set(hopKey(a, b), pts); via.set(hopKey(b, a), pts.toReversed()); };
+  const pos = new Map(pins),
+    via = new Map();
+  const setVia = (a, b, pts) => {
+    via.set(hopKey(a, b), pts);
+    via.set(hopKey(b, a), pts.toReversed());
+  };
 
   const routeBetween = (path, i, j) => {
-    const [a, b] = [path[i], path[j]], [pa, pb] = [pos.get(a), pos.get(b)];
-    const fwd = bends.get(hopKey(a, b)), back = bends.get(hopKey(b, a));
-    const r = fwd ? forced(pa, pb, ...fwd) : back ? forced(pb, pa, ...back)?.toReversed() : null;
-    if ((fwd || back) && !r) problems.push(`overrides: bend ${stations[a].name} > ${stations[b].name} can't be drawn that way`);
-    return r ?? route(pa, pb, {
-      geoIn: sub(geo(path[i + 1]), geo(a)), geoOut: sub(geo(b), geo(path[j - 1])),
-      prev: pos.get(path[i - 1]), next: pos.get(path[j + 1]),
-    });
+    const [a, b] = [path[i], path[j]],
+      [pa, pb] = [pos.get(a), pos.get(b)];
+    const fwd = bends.get(hopKey(a, b)),
+      back = bends.get(hopKey(b, a));
+    const r = fwd
+      ? forced(pa, pb, ...fwd)
+      : back
+        ? forced(pb, pa, ...back)?.toReversed()
+        : null;
+    if ((fwd || back) && !r)
+      problems.push(
+        `overrides: bend ${stations[a].name} > ${stations[b].name} can't be drawn that way`,
+      );
+    return (
+      r ??
+      route(pa, pb, {
+        geoIn: sub(geo(path[i + 1]), geo(a)),
+        geoOut: sub(geo(b), geo(path[j - 1])),
+        prev: pos.get(path[i - 1]),
+        next: pos.get(path[j + 1]),
+      })
+    );
   };
 
   // Spread path[i+1..j-1] evenly along the route between the placed stations path[i] and path[j].
   const span = (path, i, j) => {
     const r = routeBetween(path, i, j);
-    const leg = dist(r[0], r[1]), total = leg + (r[2] ? dist(r[1], r[2]) : 0), step = total / (j - i);
-    const at = (t) => (t <= leg ? add(r[0], unit(sub(r[1], r[0])), t) : add(r[1], unit(sub(r[2], r[1])), t - leg));
+    const leg = dist(r[0], r[1]),
+      total = leg + (r[2] ? dist(r[1], r[2]) : 0),
+      step = total / (j - i);
+    const at = (t) =>
+      t <= leg
+        ? add(r[0], unit(sub(r[1], r[0])), t)
+        : add(r[1], unit(sub(r[2], r[1])), t - leg);
     for (let k = i + 1; k < j; k++) pos.set(path[k], at(step * (k - i)));
     for (let k = i; k < j; k++) {
-      const inside = r[2] && leg > step * (k - i) + EPS && leg < step * (k - i + 1) - EPS;
+      const inside =
+        r[2] && leg > step * (k - i) + EPS && leg < step * (k - i + 1) - EPS;
       setVia(path[k], path[k + 1], inside ? [r[1]] : []);
     }
   };
@@ -142,7 +218,8 @@ function place(paths, stations, pins, bends, problems) {
     let heading = null;
     for (k += step; path[k] && !pos.has(path[k]); k += step) {
       const real = sub(geo(path[k]), geo(path[k - step]));
-      if (!heading || angle(heading, real) > 0.6) heading = DIR8.toSorted((p, q) => angle(p, real) - angle(q, real))[0];
+      if (!heading || angle(heading, real) > SWING)
+        heading = DIR8.toSorted((p, q) => angle(p, real) - angle(q, real))[0];
       pos.set(path[k], add(pos.get(path[k - step]), heading));
     }
   };
@@ -153,20 +230,36 @@ function place(paths, stations, pins, bends, problems) {
       let last = -1;
       path.forEach((id, k) => {
         if (!pos.has(id)) return;
-        if (last >= 0 && k - last > 1) { span(path, last, k); progress = true; }
+        if (last >= 0 && k - last > 1) {
+          span(path, last, k);
+          progress = true;
+        }
         last = k;
       });
     }
     if (progress) continue;
     const path = paths.find((p) => p.some((id) => !pos.has(id)));
     if (!path) break;
-    if (!path.some((id) => pos.has(id))) pos.set(path[0], geo(path[0]).map((v) => Math.round(v * SEED_SCALE)));
-    walk(path, path.findLastIndex((id) => pos.has(id)), 1);
-    walk(path, path.findIndex((id) => pos.has(id)), -1);
+    if (!path.some((id) => pos.has(id)))
+      pos.set(
+        path[0],
+        geo(path[0]).map((v) => Math.round(v * SEED_SCALE)),
+      );
+    walk(
+      path,
+      path.findLastIndex((id) => pos.has(id)),
+      1,
+    );
+    walk(
+      path,
+      path.findIndex((id) => pos.has(id)),
+      -1,
+    );
   }
   for (const path of paths) {
     for (let k = 0; k < path.length - 1; k++) {
-      if (!via.has(hopKey(path[k], path[k + 1]))) setVia(path[k], path[k + 1], routeBetween(path, k, k + 1).slice(1, -1));
+      if (!via.has(hopKey(path[k], path[k + 1])))
+        setVia(path[k], path[k + 1], routeBetween(path, k, k + 1).slice(1, -1));
     }
   }
   return { pos, via };
@@ -188,14 +281,18 @@ function centrePath(path, { pos, via }, stations, problems) {
   const verts = [];
   path.forEach((id, k) => {
     verts.push({ p: pos.get(id), station: k });
-    for (const p of via.get(hopKey(id, path[k + 1])) ?? []) verts.push({ p, hop: k });
+    for (const p of via.get(hopKey(id, path[k + 1])) ?? [])
+      verts.push({ p, hop: k });
   });
   const segs = [];
   let hop = 0;
   for (let k = 0; k < verts.length - 1; k++) {
     if (verts[k].station !== undefined) hop = verts[k].station;
     const d = sub(verts[k + 1].p, verts[k].p);
-    if (len(d) < EPS) problems.push(`${stations[path[hop]].name} and ${stations[path[hop + 1]].name} are on top of each other`);
+    if (len(d) < EPS)
+      problems.push(
+        `${stations[path[hop]].name} and ${stations[path[hop + 1]].name} are on top of each other`,
+      );
     segs.push({ dir: unit(d), hop, lane: null, shift: 0 });
   }
   return { verts, segs };
@@ -204,7 +301,11 @@ function centrePath(path, { pos, via }, stations, problems) {
 // A path's segments grouped into straights.
 function straights(segs) {
   const runs = [];
-  segs.forEach((s, k) => (k && dist(s.dir, segs[k - 1].dir) < EPS ? runs.at(-1).push(s) : runs.push([s])));
+  segs.forEach((s, k) =>
+    k && dist(s.dir, segs[k - 1].dir) < EPS
+      ? runs.at(-1).push(s)
+      : runs.push([s]),
+  );
   return runs;
 }
 
@@ -212,7 +313,8 @@ function straights(segs) {
 function assignLanes(lines, main, sides) {
   // Direction a line leaves station index i towards index i + step.
   const leave = (l, i, step) => {
-    const { verts, segs } = main.get(l.id), v = verts.findIndex((x) => x.station === i);
+    const { verts, segs } = main.get(l.id),
+      v = verts.findIndex((x) => x.station === i);
     const s = segs[step > 0 ? v : v - 1];
     return s ? [s.dir[0] * step, s.dir[1] * step] : null;
   };
@@ -220,7 +322,8 @@ function assignLanes(lines, main, sides) {
   const edges = new Map(); // "a>b" (ids sorted) → [{ line, hop, fwd }]
   for (const l of lines) {
     l.stations.slice(0, -1).forEach((a, hop) => {
-      const b = l.stations[hop + 1], key = edgeKey(a, b);
+      const b = l.stations[hop + 1],
+        key = edgeKey(a, b);
       if (!edges.has(key)) edges.set(key, []);
       edges.get(key).push({ line: l, hop, fwd: a < b });
     });
@@ -232,21 +335,32 @@ function assignLanes(lines, main, sides) {
     for (const Q of lines) {
       if (P.id >= Q.id) continue;
       const qi = new Map(Q.stations.map((id, i) => [id, i]));
-      const shared = (i) => Math.abs(qi.get(P.stations[i]) - qi.get(P.stations[i + 1])) === 1;
+      const shared = (i) =>
+        Math.abs(qi.get(P.stations[i]) - qi.get(P.stations[i + 1])) === 1;
       for (let i = 0; i < P.stations.length - 1; i++) {
         if (!shared(i)) continue;
         let j = i + 1;
         while (j < P.stations.length - 1 && shared(j)) j++;
-        const qdir = Math.sign(qi.get(P.stations[i + 1]) - qi.get(P.stations[i]));
+        const qdir = Math.sign(
+          qi.get(P.stations[i + 1]) - qi.get(P.stations[i]),
+        );
         // At each end, facing out of the shared stretch: whoever turns further left is on the left.
         const vote = (pIdx, step) => {
-          const back = leave(P, pIdx, -step), p = leave(P, pIdx, step), q = leave(Q, qi.get(P.stations[pIdx]), step * qdir);
+          const back = leave(P, pIdx, -step),
+            p = leave(P, pIdx, step),
+            q = leave(Q, qi.get(P.stations[pIdx]), step * qdir);
           const facing = [-back[0], -back[1]];
-          return p && q ? Math.sign(turn(facing, q) - turn(facing, p)) * step : 0;
+          return p && q
+            ? Math.sign(turn(facing, q) - turn(facing, p)) * step
+            : 0;
         };
         const votes = vote(j, 1) + vote(i, -1);
-        const forcedSide = sides.find((s) => s.includes(P.id) && s.includes(Q.id));
-        const pLeft = forcedSide ? forcedSide[0] === P.id || qdir < 0 : votes >= 0;
+        const forcedSide = sides.find(
+          (s) => s.includes(P.id) && s.includes(Q.id),
+        );
+        const pLeft = forcedSide
+          ? forcedSide[0] === P.id || qdir < 0
+          : votes >= 0;
         for (let k = i; k < j; k++) {
           const [a, b] = [P.stations[k], P.stations[k + 1]];
           leftOf.set(`${P.id}>${Q.id}>${edgeKey(a, b)}`, pLeft === a < b);
@@ -258,11 +372,15 @@ function assignLanes(lines, main, sides) {
 
   for (const [key, users] of edges) {
     if (users.length < 2) continue;
-    const left = (u, v) => (u.line.id < v.line.id ? leftOf.get(`${u.line.id}>${v.line.id}>${key}`) : !leftOf.get(`${v.line.id}>${u.line.id}>${key}`));
+    const left = (u, v) =>
+      u.line.id < v.line.id
+        ? leftOf.get(`${u.line.id}>${v.line.id}>${key}`)
+        : !leftOf.get(`${v.line.id}>${u.line.id}>${key}`);
     users.sort((u, v) => (left(u, v) ? -1 : 1));
     users.forEach((u, n) => {
       const lane = (n - (users.length - 1) / 2) * (u.fwd ? 1 : -1);
-      for (const s of main.get(u.line.id).segs) if (s.hop === u.hop) s.lane = lane;
+      for (const s of main.get(u.line.id).segs)
+        if (s.hop === u.hop) s.lane = lane;
     });
   }
 
@@ -270,7 +388,10 @@ function assignLanes(lines, main, sides) {
   // line peels off).
   for (const { segs } of main.values()) {
     for (const run of straights(segs)) {
-      for (const order of [run, run.toReversed()]) order.forEach((s, k) => { if (s.lane === null && k) s.lane = order[k - 1].lane; });
+      for (const order of [run, run.toReversed()])
+        order.forEach((s, k) => {
+          if (s.lane === null && k) s.lane = order[k - 1].lane;
+        });
     }
   }
 }
@@ -281,9 +402,17 @@ function applyShifts(shifts, lines, main, problems) {
   for (const sh of shifts) {
     for (const id of sh.lines) {
       const i = lineById.get(id)?.stations.indexOf(sh.at) ?? -1;
-      if (i < 0) { problems.push(`overrides: shift of ${id} at "${sh.name}" matches nothing`); continue; }
-      const { verts, segs } = main.get(id), v = verts.findIndex((x) => x.station === i);
-      for (const run of straights(segs)) if (run.includes(segs[v]) || run.includes(segs[v - 1])) for (const s of run) s.shift += sh.by;
+      if (i < 0) {
+        problems.push(
+          `overrides: shift of ${id} at "${sh.name}" matches nothing`,
+        );
+        continue;
+      }
+      const { verts, segs } = main.get(id),
+        v = verts.findIndex((x) => x.station === i);
+      for (const run of straights(segs))
+        if (run.includes(segs[v]) || run.includes(segs[v - 1]))
+          for (const s of run) s.shift += sh.by;
     }
   }
 }
@@ -293,29 +422,43 @@ function applyShifts(shifts, lines, main, problems) {
 function offsetPath({ verts, segs }) {
   const off = (s) => ((s.lane ?? 0) + s.shift) * LANE;
   const side = (p, s) => add(p, [-s.dir[1], s.dir[0]], off(s)); // right of travel
-  const pts = [], stops = [];
+  const pts = [],
+    stops = [];
   verts.forEach(({ p, station }, k) => {
     const [s0, s1] = [segs[k - 1], segs[k]];
     let here;
     if (!s0 || !s1) here = [side(p, s0 ?? s1)];
     else if (Math.abs(cross(s0.dir, s1.dir)) > EPS) {
-      const a = side(p, s0), b = side(p, s1);
+      const a = side(p, s0),
+        b = side(p, s1);
       here = [add(a, s0.dir, cross(sub(b, a), s1.dir) / cross(s0.dir, s1.dir))];
     } else if (Math.abs(off(s0) - off(s1)) < EPS) here = [side(p, s0)];
-    else here = [side(p, s0), add(side(p, s1), s1.dir, Math.abs(off(s0) - off(s1)))]; // 45° lane change
+    else
+      here = [
+        side(p, s0),
+        add(side(p, s1), s1.dir, Math.abs(off(s0) - off(s1))),
+      ]; // 45° lane change
     if (station !== undefined) stops.push(here[0].map(r3));
     pts.push(...here.map((q) => q.map(r3)));
   });
   // Drop vertices in the middle of a straight.
-  const path = pts.filter((q, k) => !k || k === pts.length - 1
-    || Math.abs(cross(unit(sub(q, pts[k - 1])), unit(sub(pts[k + 1], q)))) > 1e-3);
+  const path = pts.filter(
+    (q, k) =>
+      !k ||
+      k === pts.length - 1 ||
+      Math.abs(cross(unit(sub(q, pts[k - 1])), unit(sub(pts[k + 1], q)))) >
+        FLAT,
+  );
   return { path, stops };
 }
 
 // How far along a → b the point q sits (0 → 1), or null if it isn't on that segment.
 function onSegment(q, a, b) {
-  const d = sub(b, a), t = dot(sub(q, a), d) / dot(d, d);
-  return t > -1e-3 && t < 1 + 1e-3 && Math.abs(cross(sub(q, a), unit(d))) < 2e-3 ? t : null;
+  const d = sub(b, a),
+    t = dot(sub(q, a), d) / dot(d, d);
+  return t > -NEAR && t < 1 + NEAR && Math.abs(cross(sub(q, a), unit(d))) < OFF
+    ? t
+    : null;
 }
 
 // Where a shift has parked lines beside a station's other lines, slide their stops along the
@@ -326,16 +469,22 @@ function alignShiftedStops(shifts, lines, drawn) {
     const here = lines.filter((l) => l.stations.includes(sh.at));
     const stop = (l) => drawn.get(l.id).stops[l.stations.indexOf(sh.at)];
     const rest = here.filter((l) => !sh.lines.includes(l.id)).map(stop);
-    const [o, o2] = [rest[0], rest.find((q) => dist(q, rest[0]) > 1e-3)];
+    const [o, o2] = [rest[0], rest.find((q) => dist(q, rest[0]) > NEAR)];
     if (!o2) continue;
     for (const l of here.filter((l) => sh.lines.includes(l.id))) {
-      const { path, stops } = drawn.get(l.id), q = stop(l);
-      const options = path.slice(1).flatMap((b, k) => {
-        const a = path[k], d = sub(b, a), det = cross(d, sub(o2, o));
-        if (onSegment(q, a, b) === null || Math.abs(det) < EPS) return [];
-        const t = cross(sub(o, a), sub(o2, o)) / det;
-        return t >= 0 && t <= 1 ? [add(a, d, t).map(r3)] : [];
-      }).sort((u, v) => dist(u, q) - dist(v, q));
+      const { path, stops } = drawn.get(l.id),
+        q = stop(l);
+      const options = path
+        .slice(1)
+        .flatMap((b, k) => {
+          const a = path[k],
+            d = sub(b, a),
+            det = cross(d, sub(o2, o));
+          if (onSegment(q, a, b) === null || Math.abs(det) < EPS) return [];
+          const t = cross(sub(o, a), sub(o2, o)) / det;
+          return t >= 0 && t <= 1 ? [add(a, d, t).map(r3)] : [];
+        })
+        .sort((u, v) => dist(u, q) - dist(v, q));
       if (options[0]) stops[l.stations.indexOf(sh.at)] = options[0];
     }
   }
@@ -344,17 +493,21 @@ function alignShiftedStops(shifts, lines, drawn) {
 // Distance along the path to each stop (`at`), checking the path on the way.
 function measure({ path, stops }, ids, stations, problems) {
   const name = `${stations[ids[0]].name} → ${stations[ids.at(-1)].name}`;
-  let k = 0, run = 0;
+  let k = 0,
+    run = 0;
   const at = stops.map((q) => {
     for (; k < path.length - 1; run += dist(path[k], path[k + 1]), k++) {
       const t = onSegment(q, path[k], path[k + 1]);
       if (t !== null) return r3(run + t * dist(path[k], path[k + 1]));
     }
-    problems.push(`${name}: a stop is off the path (stations too close to a bend?)`);
+    problems.push(
+      `${name}: a stop is off the path (stations too close to a bend?)`,
+    );
     return r3(run);
   });
   path.slice(1).forEach((q, n) => {
-    if (!isOctilinear(sub(q, path[n]), 2e-3)) problems.push(`${name}: segment ${path[n]} → ${q} is not octilinear`);
+    if (!isOctilinear(sub(q, path[n]), OFF))
+      problems.push(`${name}: segment ${path[n]} → ${q} is not octilinear`);
   });
   return { path, stops, at };
 }
@@ -363,12 +516,26 @@ function measure({ path, stops }, ids, stations, problems) {
 function markStations(stations, stopsAt) {
   const out = {};
   for (const [id, s] of Object.entries(stations)) {
-    const pts = stopsAt.get(id).filter((p, k, all) => all.findIndex((q) => dist(p, q) < 1e-3) === k);
-    const far = pts.flatMap((p) => pts.map((q) => [p, q])).reduce((a, b) => (dist(...b) > dist(...a) ? b : a));
+    const pts = stopsAt
+      .get(id)
+      .filter((p, k, all) => all.findIndex((q) => dist(p, q) < NEAR) === k);
+    const far = pts
+      .flatMap((p) => pts.map((q) => [p, q]))
+      .reduce((a, b) => (dist(...b) > dist(...a) ? b : a));
     const axis = sub(far[1], far[0]);
     pts.sort((p, q) => dot(sub(p, q), axis));
-    const mid = [0, 1].map((c) => r3(pts.reduce((sum, p) => sum + p[c], 0) / pts.length));
-    out[id] = { name: s.name, x: mid[0], y: mid[1], geo: [s.x, s.y], lines: s.lines, transfer: s.transfer, ...(pts.length > 1 && { marker: pts }) };
+    const mid = [0, 1].map((c) =>
+      r3(pts.reduce((sum, p) => sum + p[c], 0) / pts.length),
+    );
+    out[id] = {
+      name: s.name,
+      x: mid[0],
+      y: mid[1],
+      geo: [s.x, s.y],
+      lines: s.lines,
+      transfer: s.transfer,
+      ...(pts.length > 1 && { marker: pts }),
+    };
   }
   return out;
 }
@@ -380,9 +547,16 @@ function checkSpacing(stations, problems) {
   for (const a of ids) {
     for (const b of ids) {
       if (a >= b) continue;
-      const d = dist([stations[a].x, stations[a].y], [stations[b].x, stations[b].y]);
-      if (d < closest.d) closest = { d, a: stations[a].name, b: stations[b].name };
-      if (d < MIN_SPACING) problems.push(`${stations[a].name} and ${stations[b].name} are ${d.toFixed(2)} apart (min ${MIN_SPACING})`);
+      const d = dist(
+        [stations[a].x, stations[a].y],
+        [stations[b].x, stations[b].y],
+      );
+      if (d < closest.d)
+        closest = { d, a: stations[a].name, b: stations[b].name };
+      if (d < MIN_SPACING)
+        problems.push(
+          `${stations[a].name} and ${stations[b].name} are ${d.toFixed(2)} apart (min ${MIN_SPACING})`,
+        );
     }
   }
   return closest;
@@ -416,7 +590,9 @@ export function schematize(lines, stations, overrides = {}) {
     l.stations.forEach((id, k) => stopsAt.get(id).push(own.stops[k]));
     const extraPaths = l.extraPaths.map((ids) => {
       const extra = measure(offsetPath(centre(ids)), ids, stations, problems);
-      ids.forEach((id, k) => { if (!l.stations.includes(id)) stopsAt.get(id).push(extra.stops[k]); });
+      ids.forEach((id, k) => {
+        if (!l.stations.includes(id)) stopsAt.get(id).push(extra.stops[k]);
+      });
       return { stations: ids, ...extra };
     });
     return { ...l, ...own, extraPaths };
@@ -424,14 +600,32 @@ export function schematize(lines, stations, overrides = {}) {
   const outStations = markStations(stations, stopsAt);
 
   const closest = checkSpacing(outStations, problems);
-  const all = outLines.flatMap((l) => [l.path, ...l.extraPaths.map((e) => e.path)]).flat();
+  const all = outLines
+    .flatMap((l) => [l.path, ...l.extraPaths.map((e) => e.path)])
+    .flat();
   const bounds = {
-    minX: Math.min(...all.map((p) => p[0])), minY: Math.min(...all.map((p) => p[1])),
-    maxX: Math.max(...all.map((p) => p[0])), maxY: Math.max(...all.map((p) => p[1])),
+    minX: Math.min(...all.map((p) => p[0])),
+    minY: Math.min(...all.map((p) => p[1])),
+    maxX: Math.max(...all.map((p) => p[0])),
+    maxY: Math.max(...all.map((p) => p[1])),
   };
-  const segments = outLines.reduce((n, l) => n + l.path.length - 1 + l.extraPaths.reduce((m, e) => m + e.path.length - 1, 0), 0);
-  const summary = `${r3(bounds.maxX - bounds.minX)} × ${r3(bounds.maxY - bounds.minY)} units, ${segments} segments, `
-    + `closest stations ${closest.d.toFixed(2)} apart (${closest.a} / ${closest.b}), ${rules.pins.size} pinned`;
+  const segments = outLines.reduce(
+    (n, l) =>
+      n +
+      l.path.length -
+      1 +
+      l.extraPaths.reduce((m, e) => m + e.path.length - 1, 0),
+    0,
+  );
+  const summary =
+    `${r3(bounds.maxX - bounds.minX)} × ${r3(bounds.maxY - bounds.minY)} units, ${segments} segments, ` +
+    `closest stations ${closest.d.toFixed(2)} apart (${closest.a} / ${closest.b}), ${rules.pins.size} pinned`;
 
-  return { layout: { lane: LANE, bounds }, lines: outLines, stations: outStations, problems, summary };
+  return {
+    layout: { lane: LANE, bounds },
+    lines: outLines,
+    stations: outStations,
+    problems,
+    summary,
+  };
 }

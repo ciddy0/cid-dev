@@ -3,21 +3,21 @@ import map from "../public/data/metro.json";
 import { adapter } from "./adapt.js";
 import { SPAN, key, parquet, sample, windowOf } from "./archive.js";
 
-// GTFS-realtime vehicle positions as JSON, a message per vehicle, no API key: every rail
-// vehicle, and the buses of the G Line (route 901).
 const FEEDS = [
   "wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions",
   "wss://api.metro.net/ws/LACMTA/vehicle_positions/901",
 ];
-const EVERY = 5; // seconds between snapshots
-const QUIET = 30; // seconds without a word from Metro before the snapshots stop
-const WARM = 8; // seconds given to Metro to connect and get through every vehicle
-const ROUND = 1.5; // seconds a feed takes over every vehicle, from the first it sends
-const GONE = 300; // seconds since Metro last mentioned a train before it is dropped
-const RETRY = 30; // seconds between tries at a feed that is down
-const RECORD = 60; // seconds between frames of the record
-const KEEP = 65 * 60; // seconds a frame is kept, a little over what the page plays back
-const RECENT = 180; // seconds old the last frame can be for the record to be worth playing
+const EVERY = 5;
+const QUIET = 30;
+const WARM = 8;
+const ROUND = 1.5;
+const GONE = 300;
+const RETRY = 30;
+const RECORD = 60;
+const KEEP = 65 * 60;
+const RECENT = 180;
+const CACHE = 20;
+const SLACK = 100;
 
 const seconds = () => Date.now() / 1000;
 
@@ -37,10 +37,10 @@ export default {
 export class LiveHub extends DurableObject {
   viewers = new Set();
   feeds = FEEDS.map((url) => ({ url, socket: null, tried: 0, since: 0 })); // since: its first word
-  trains = new Map(); // vehicle id → where the feed last put it
+  trains = new Map();
   seen = new Map();
-  heard = 0; // when Metro last said anything
-  woke = 0; // when the hub started listening
+  heard = 0;
+  woke = 0;
   timer = 0;
   adapt = adapter(map);
 
@@ -52,7 +52,6 @@ export class LiveHub extends DurableObject {
     ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS samples (at INTEGER PRIMARY KEY, vehicles TEXT NOT NULL)",
     );
-    // The record starts with the first visit, and from then on keeps itself going.
     ctx.blockConcurrencyWhile(async () => {
       if ((await ctx.storage.getAlarm()) == null)
         await ctx.storage.setAlarm(Date.now());
@@ -148,7 +147,7 @@ export class LiveHub extends DurableObject {
       {
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "max-age=20",
+          "Cache-Control": `max-age=${CACHE}`,
         },
       },
     );
@@ -180,17 +179,14 @@ export class LiveHub extends DurableObject {
       }
       this.heard = seconds();
       if (!feed.since) {
-        // Whoever woke the hub gets a snapshot as soon as there is a whole one.
         feed.since = this.heard;
-        setTimeout(() => this.timer && this.tick(), ROUND * 1000 + 100);
+        setTimeout(() => this.timer && this.tick(), ROUND * 1000 + SLACK);
       }
-      // Kept by when it was heard of, not when it last reported: Metro goes on sending a train
-      // whose report is minutes old (one standing at the end of the line, say), and it's there.
       if (train) this.trains.set(train.id, { ...train, heard: this.heard });
       else this.trains.delete(message.id);
       if (row) this.seen.set(row.vehicle_id, { ...row, heard: this.heard });
     });
-    socket.addEventListener("error", () => {}); // `connect` tries again
+    socket.addEventListener("error", () => {});
   }
 
   // The trains as JSON, less the ones that have gone, or nothing while Metro hasn't been heard

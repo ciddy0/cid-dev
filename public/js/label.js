@@ -1,23 +1,19 @@
 // The station label: one floating chip row + name, shared by hover, tap and keyboard focus,
 // with a halo round the station it names.
-import { svg } from "./dom.js";
+import { svg, toMap, toScreen } from "./dom.js";
 import { t } from "./lang.js";
 import { clamp } from "./math.js";
 import { lineColor, lineInk } from "./network.js";
 
-const HOVER_REACH = 12; // px from a station that the mouse still picks it
-const TAP_REACH = 24; // and a finger
-const EDGE = 8; // px the label keeps from the window's edge, and from its station's halo
+const HOVER_REACH = 12;
+const TAP_REACH = 24;
+const REACH_MIN = 0.45;
+const EDGE = 8;
 
 const label = document.getElementById("label");
 
 export function stationLabel({ stations, halo, lane }, cam) {
   let active = null;
-
-  const toScreen = (s) => {
-    const m = svg.getScreenCTM();
-    return { x: m.a * s.x + m.e, y: m.d * s.y + m.f, scale: m.a };
-  };
 
   function place() {
     if (!active) return;
@@ -31,9 +27,8 @@ export function stationLabel({ stations, halo, lane }, cam) {
     label.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
   }
 
-  // The label is a live region, which a screen reader reads out as it changes. It is told the
-  // station in words (`said`), not the chips' letters run into the name. Unless `spoken` is
-  // off: a station that has focus has just been read out itself.
+  // A screen reader reads the label out as it changes: the station in words (`said`), not the
+  // chips' letters. `spoken` is off for a station with focus, which has just been read itself.
   function show(s, spoken = true) {
     if (s === active) return;
     active = s;
@@ -54,7 +49,12 @@ export function stationLabel({ stations, halo, lane }, cam) {
     name.setAttribute("aria-hidden", "true");
     const said = document.createElement("span");
     said.className = "sr";
-    if (spoken) said.textContent = t("station", s.name, s.lines.map((line) => line.id));
+    if (spoken)
+      said.textContent = t(
+        "station",
+        s.name,
+        s.lines.map((line) => line.id),
+      );
     label.replaceChildren(chips, name, said);
     halo.setAttribute("cx", s.x);
     halo.setAttribute("cy", s.y);
@@ -75,10 +75,8 @@ export function stationLabel({ stations, halo, lane }, cam) {
   // Stations are tiny, so pick the nearest one within a finger-sized radius instead of
   // relying on the marker itself being hit.
   function nearest(e, reachPx) {
-    const m = svg.getScreenCTM();
-    const x = (e.clientX - m.e) / m.a,
-      y = (e.clientY - m.f) / m.d;
-    const reach = Math.max(reachPx / m.a, 0.45);
+    const { x, y, scale } = toMap(e);
+    const reach = Math.max(reachPx / scale, REACH_MIN);
     let best = null,
       bestD = Infinity;
     for (const s of stations) {
@@ -105,13 +103,10 @@ export function stationLabel({ stations, halo, lane }, cam) {
   cam.onTap = (e) => {
     if (e.pointerType !== "mouse") pick(e, TAP_REACH);
   };
-  // The label rides along with its station, and goes when the station leaves the screen or the
-  // camera heads back to the menu.
   cam.onMove = () => {
     if (active && !(cam.roam && cam.sees(active))) hide();
     else place();
   };
-  // Mouse only: a finger lifting off also "leaves", right after the tap that showed the label.
   document.documentElement.addEventListener("pointerleave", (e) => {
     if (e.pointerType === "mouse") hide();
   });

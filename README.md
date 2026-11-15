@@ -13,14 +13,14 @@ Not affiliated with LA Metro. Please don't plan a trip with it.
 
 ## Commands
 
-| | |
-| --- | --- |
-| `npm run dev` | serve `public/` and the Worker locally (wrangler); the live trains are real |
-| `npm install` | the one dependency (`hyparquet-writer`), which the Worker and one test need |
-| `npm test` | unit tests (`node --test`) |
-| `npm run fetch` | download the GTFS feeds into `data/raw/` (not committed) |
-| `npm run build` | `data/raw/` + `data/overrides.json` → `public/data/metro.json` |
-| `npm run deploy` | publish `public/` and the Worker to cid.dev |
+|                  |                                                                             |
+| ---------------- | --------------------------------------------------------------------------- |
+| `npm run dev`    | serve `public/` and the Worker locally (wrangler); the live trains are real |
+| `npm install`    | the one dependency (`hyparquet-writer`), which the Worker and one test need |
+| `npm test`       | unit tests (`node --test`)                                                  |
+| `npm run fetch`  | download the GTFS feeds into `data/raw/` (not committed)                    |
+| `npm run build`  | `data/raw/` + `data/overrides.json` → `public/data/metro.json`              |
+| `npm run deploy` | publish `public/` and the Worker to cid.dev                                 |
 
 Needs Node 22 or newer. The page itself only needs `public/` served by anything static: without
 the Worker its trains follow the timetable.
@@ -36,13 +36,13 @@ GTFS feeds ──fetch──▶ data/raw/ ──build──▶ public/data/metro
 **The data pipeline** (`scripts/`) runs by hand, when the feed or the layout changes, and its
 output is committed.
 
-| | |
-| --- | --- |
-| `fetch-gtfs.mjs` | command: downloads the rail feed, and the G Line's rows of the bus feed |
-| `build-map.mjs` | command: reads the tables, builds, lays out, writes `metro.json`, reports |
-| `lib/network.mjs` | GTFS tables → lines and stations, geographic |
-| `lib/schematize.mjs` | geographic → schematic: the layout, steered by `data/overrides.json` (documented at the top of the file) |
-| `lib/csv.mjs`, `lib/vec.mjs`, `lib/paths.mjs` | CSV parser, vector maths, where files live |
+|                                               |                                                                                                          |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `fetch-gtfs.mjs`                              | command: downloads the rail feed, and the G Line's rows of the bus feed                                  |
+| `build-map.mjs`                               | command: reads the tables, builds, lays out, writes `metro.json`, reports                                |
+| `lib/network.mjs`                             | GTFS tables → lines and stations, geographic                                                             |
+| `lib/schematize.mjs`                          | geographic → schematic: the layout, steered by `data/overrides.json` (documented at the top of the file) |
+| `lib/csv.mjs`, `lib/vec.mjs`, `lib/paths.mjs` | CSV parser, vector maths, where files live                                                               |
 
 `build-map` prints layout problems (stations too close, a stop off its path, an override that
 matches nothing); fix those in `data/overrides.json`, not in `metro.json`.
@@ -50,22 +50,22 @@ matches nothing); fix those in `data/overrides.json`, not in `metro.json`.
 **The page** (`public/`) is `index.html`, `styles.css` and the modules in `js/`. `main.js` wires
 them up, roughly in this order:
 
-| | |
-| --- | --- |
-| `network.js` | loads `metro.json`; line colours |
-| `draw.js` | draws the coastline, lines, termini (`termini.js`) and stations into the `<svg>`; returns the tracks, stations and bounds everything else works from |
-| `camera.js` | the viewBox: drag, pinch, wheel, glides |
-| `label.js` | the station name label and halo |
-| `trains.js` | puts a car wherever a feed says a train is, riding the tracks (`rail.js`) |
-| `live.js` | the live feed: the last hour run through in half a minute as the view opens, every car stopping at its stations to let passengers off and on, then the socket to `/live`, cars eased from one snapshot to the next |
-| `timetable.js` | the fallback feed: where every train is, worked out from the timetable |
-| `menu.js` | the menu and the screens it flies to (map, resume, about, settings); starts and stops the trains |
-| `intro.js` | the lines drawing themselves in as the page opens |
-| `resume.js` | the resume screen: the jobs as stops along a line, the picked one a card on it with a little map of where the job was |
-| `settings.js`, `prefs.js` | the settings (language, night mode, colorblind mode, coastline, motion, sound, volume), stored in `localStorage` |
-| `lang.js` | every word on the page, in English and Spanish |
-| `sound.js` | the synthesized piano: a note as a train arrives on screen, menu figures, the hum |
-| `geometry.js`, `math.js`, `dom.js` | bends and arcs, small numeric helpers, the SVG element helper |
+|                                    |                                                                                                                                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `network.js`                       | loads `metro.json`; line colours                                                                                                                                                                                   |
+| `draw.js`                          | draws the coastline, lines, termini (`termini.js`) and stations into the `<svg>`; returns the tracks, stations and bounds everything else works from                                                               |
+| `camera.js`                        | the viewBox: drag, pinch, wheel, glides                                                                                                                                                                            |
+| `label.js`                         | the station name label and halo                                                                                                                                                                                    |
+| `trains.js`                        | puts a car wherever a feed says a train is, riding the tracks (`rail.js`)                                                                                                                                          |
+| `live.js`                          | the live feed: the last hour run through in half a minute as the view opens, every car stopping at its stations to let passengers off and on, then the socket to `/live`, cars eased from one snapshot to the next |
+| `timetable.js`                     | the fallback feed: where every train is, worked out from the timetable                                                                                                                                             |
+| `menu.js`                          | the menu and the screens it flies to (map, resume, about, settings); starts and stops the trains                                                                                                                   |
+| `intro.js`                         | the lines drawing themselves in as the page opens                                                                                                                                                                  |
+| `resume.js`                        | the resume screen: the jobs as stops along a line, the picked one a card on it with a little map of where the job was                                                                                              |
+| `settings.js`, `prefs.js`          | the settings (language, night mode, colorblind mode, coastline, motion, sound, volume), stored in `localStorage`                                                                                                   |
+| `lang.js`                          | every word on the page, in English and Spanish                                                                                                                                                                     |
+| `sound.js`                         | the synthesized piano: a note as a train arrives on screen, menu figures, the hum                                                                                                                                  |
+| `geometry.js`, `math.js`, `dom.js` | bends and arcs, small numeric helpers, the SVG element helper                                                                                                                                                      |
 
 `geometry.js`, `termini.js`, `timetable.js`, `math.js` and `follower()` in `live.js` never touch
 the page, which is what lets `test/` run them under Node. Keep them that way.
@@ -73,11 +73,11 @@ the page, which is what lets `test/` run them under Node. Keep them that way.
 **The Worker** (`worker/`) serves `public/` and the live trains
 ([diagram](docs/live-trains-architecture.svg)).
 
-| | |
-| --- | --- |
-| `index.js` | the `/live` websocket, `/live/history`, and the hub: one Durable Object that listens to LA Metro's vehicle positions while anyone is watching and sends every visitor a snapshot each few seconds. Once a minute, watched or not, it stores a snapshot, and keeps 65 minutes of them. The same minute it notes what the feed said about every vehicle, and every six hours writes those notes to R2 as one file |
-| `adapt.js` | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json` |
-| `archive.js` | the archive, less the bucket: one vehicle of the feed → a flat row, which six hours a time falls in and the file they are kept as, rows → Parquet |
+|              |                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.js`   | the `/live` websocket, `/live/history`, and the hub: one Durable Object that listens to LA Metro's vehicle positions while anyone is watching and sends every visitor a snapshot each few seconds. Once a minute, watched or not, it stores a snapshot, and keeps 65 minutes of them. The same minute it notes what the feed said about every vehicle, and every six hours writes those notes to R2 as one file |
+| `adapt.js`   | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json`                                                                                                                                                                                                                                                                                                                        |
+| `archive.js` | the archive, less the bucket: one vehicle of the feed → a flat row, which six hours a time falls in and the file they are kept as, rows → Parquet                                                                                                                                                                                                                                                               |
 
 The page shows the timetable when there is neither a record nor a snapshot to go on, and again
 whenever the snapshots stop. The record starts with the first visit after a deploy, so the very
@@ -149,8 +149,8 @@ CREATE VIEW archive AS
    ) WHERE gap > INTERVAL 90 SECOND ORDER BY 1;
    ```
 
-3. **How big is a full file?** `ls -l data/raw/archive/*/`, and put the real figure under *How
-   long* above.
+3. **How big is a full file?** `ls -l data/raw/archive/*/`, and put the real figure under _How
+   long_ above.
 
 4. **How do stops show up, a sample a minute?** `step` is how many stops a train moved on
    between two samples: 0 and 1 are easy to count, 2 or more is a stop it was never seen at. In

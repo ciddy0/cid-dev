@@ -1,7 +1,3 @@
-// What the settings screen sets, kept in localStorage. Until the visitor picks, motion and
-// language follow the system's. With motion off the page is `.calm`, with night mode off it is
-// `.day`, in colorblind mode it is `.cb`,
-// and with the coast off it is `.bare`.
 const KEY = "prefs";
 
 export const prefs = {
@@ -11,7 +7,7 @@ export const prefs = {
   colorblind: false,
   coast: true,
   lang: navigator.language?.startsWith("es") ? "es" : "en",
-  volume: 1, // an index into the settings screen's Low / Medium / High
+  volume: 1,
 };
 try {
   Object.assign(prefs, JSON.parse(localStorage.getItem(KEY)));
@@ -22,9 +18,10 @@ const apply = () => {
   document.documentElement.classList.toggle("day", !prefs.night);
   document.documentElement.classList.toggle("cb", prefs.colorblind);
   document.documentElement.classList.toggle("bare", !prefs.coast);
-  // The phone's own bars take the page's background, which the classes above have just set.
   const theme = document.querySelector('meta[name="theme-color"]'),
-    bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    bg = getComputedStyle(document.documentElement)
+      .getPropertyValue("--bg")
+      .trim();
   if (theme && bg) theme.content = bg;
 };
 

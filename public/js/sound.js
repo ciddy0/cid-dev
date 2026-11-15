@@ -3,26 +3,36 @@
 // short figures, and a low hum sits under the view screen while trains are moving. Every note
 // comes off one pentatonic ladder, so whatever lands together is in tune. All of it only while
 // the sound pref is on.
-import { svg } from "./dom.js";
+import { toScreen } from "./dom.js";
 import { clamp } from "./math.js";
 import { prefs } from "./prefs.js";
 
-const LADDER = [0, 2, 4, 7, 9]; // F major pentatonic, as semitones above F
-const LOW = 41; // F2 as a MIDI note, the ladder's bottom rung
-// Each line's own register: the rung its first station plays. Subways low, the long light rail
-// lines in the middle, the short ones up high.
+const LADDER = [0, 2, 4, 7, 9];
+const LOW = 41;
 const RUNG = { B: 0, D: 2, A: 5, E: 7, G: 9, C: 10, K: 12 };
-const SPAN = 8; // rungs a line climbs along its stations before coming back down
+const SPAN = 8;
 
-const GRID = 0.125; // s: arrivals are struck on this beat
-const GAP = 0.25; // s between two arrival notes, at the least
-const STEP = 0.075; // s between the notes of a menu figure
-const PAN = 0.75; // how far to one side the edge of the screen sounds
-const HUM = [43.65, 65.41]; // Hz: F1 and C2
-const LOUD = [0.35, 1, 1.8]; // the gain at each step of the volume pref
+const GRID = 0.125;
+const GAP = 0.25;
+const STEP = 0.075;
+const PAN = 0.75;
+const HUM = [43.65, 65.41];
+const LOUD = [0.35, 1, 1.8];
+const REVERB = 2.2;
+const ROOM = 0.35;
+const RING = [0.6, 2.4];
+const RING_FALL = 0.035;
+const STRIKE = 0.006;
+const PEAK = 0.16;
+const DETUNE = 4;
+const CHIME_VEL = 0.5;
+const ARRIVE_VEL = [0.35, 0.3];
+const RUNG_ELSE = 5;
+const HUM_LEVEL = 0.05;
 
 const hz = (midi) => 440 * 2 ** ((midi - 69) / 12);
-const rung = (i) => LOW + 12 * Math.floor(i / LADDER.length) + LADDER[i % LADDER.length];
+const rung = (i) =>
+  LOW + 12 * Math.floor(i / LADDER.length) + LADDER[i % LADDER.length];
 
 let audio, out, master, room, wave, hum;
 
@@ -40,23 +50,26 @@ function wake() {
   master = audio.createGain();
   master.gain.value = LOUD[prefs.volume] ?? 1;
   out.connect(master).connect(audio.destination);
-  // The room: 2.2 s of fading noise for a convolver to smear every note with.
-  const len = Math.floor(audio.sampleRate * 2.2),
+  const len = Math.floor(audio.sampleRate * REVERB),
     ir = audio.createBuffer(2, len, audio.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
     const data = ir.getChannelData(ch);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3;
+    for (let i = 0; i < len; i++)
+      data[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3;
   }
   room = audio.createGain();
-  room.gain.value = 0.35;
+  room.gain.value = ROOM;
   const reverb = audio.createConvolver();
   reverb.buffer = ir;
   room.connect(reverb).connect(out);
-  // A string's overtones, each quieter than the last.
   const partials = [0, 1, 0.45, 0.22, 0.12, 0.07, 0.04, 0.02];
-  wave = audio.createPeriodicWave(new Float32Array(partials), new Float32Array(partials.length));
+  wave = audio.createPeriodicWave(
+    new Float32Array(partials),
+    new Float32Array(partials.length),
+  );
 }
-for (const type of ["pointerdown", "keydown"]) addEventListener(type, wake, true);
+for (const type of ["pointerdown", "keydown"])
+  addEventListener(type, wake, true);
 
 // One piano note: two strings a hair out of tune, bright as the hammer lands and mellowing as
 // they ring, low notes ringing longest. `vel` 0 → 1 is how hard it is struck, `pan` -1 → 1
@@ -66,17 +79,17 @@ function note(midi, { vel = 0.6, pan = 0, when = 0 } = {}) {
   if (!ctx) return;
   const t = ctx.currentTime + when,
     f = hz(midi),
-    ring = clamp(2.4 - (midi - LOW) * 0.035, 0.6, 2.4); // s for the note to die to about a third
+    ring = clamp(RING[1] - (midi - LOW) * RING_FALL, ...RING);
   const tone = ctx.createBiquadFilter(),
     amp = ctx.createGain(),
     side = ctx.createStereoPanner();
   tone.frequency.setValueAtTime(Math.min(f * (3 + 7 * vel), 12000), t);
   tone.frequency.setTargetAtTime(f * 2, t, 0.25);
   amp.gain.setValueAtTime(0, t);
-  amp.gain.linearRampToValueAtTime(0.16 * vel, t + 0.006);
-  amp.gain.setTargetAtTime(0, t + 0.006, ring);
+  amp.gain.linearRampToValueAtTime(PEAK * vel, t + STRIKE);
+  amp.gain.setTargetAtTime(0, t + STRIKE, ring);
   side.pan.value = clamp(pan, -1, 1);
-  for (const cents of [-4, 4]) {
+  for (const cents of [-DETUNE, DETUNE]) {
     const string = ctx.createOscillator();
     string.setPeriodicWave(wave);
     string.frequency.value = f;
@@ -93,7 +106,7 @@ function note(midi, { vel = 0.6, pan = 0, when = 0 } = {}) {
 // A short figure for the menu and the switches: these MIDI notes, one after another.
 export function chime(...notes) {
   wake(); // called from a click, so this is the moment the sound can start
-  notes.forEach((midi, k) => note(midi, { vel: 0.5, when: k * STEP }));
+  notes.forEach((midi, k) => note(midi, { vel: CHIME_VEL, when: k * STEP }));
 }
 
 // The handler for a train of `line` pulling into station `id`: strikes that station's note in
@@ -109,13 +122,11 @@ export function arrivals({ stations }, cam) {
     const at = Math.ceil(ctx.currentTime / GRID) * GRID;
     if (at - last < GAP) return;
     last = at;
-    // Up the line's rungs and back down, so neighbouring stations are neighbouring notes.
     const k = Math.max(0, line.stations.indexOf(id)) % (2 * SPAN),
-      i = (RUNG[line.id] ?? 5) + (k < SPAN ? k : 2 * SPAN - k);
-    const m = svg.getScreenCTM(),
-      x = (m.a * s.x + m.e) / innerWidth;
+      i = (RUNG[line.id] ?? RUNG_ELSE) + (k < SPAN ? k : 2 * SPAN - k);
+    const x = toScreen(s).x / innerWidth;
     note(rung(i), {
-      vel: 0.35 + 0.3 * Math.random(),
+      vel: ARRIVE_VEL[0] + ARRIVE_VEL[1] * Math.random(),
       pan: (x * 2 - 1) * PAN,
       when: at - ctx.currentTime,
     });
@@ -146,8 +157,11 @@ export function drone(share) {
     level.connect(room);
     hum = { tone, level };
   }
-  // It breathes on its own too, once every twelve seconds or so.
   const breath = Math.sin(ctx.currentTime * 0.5);
-  hum.tone.frequency.setTargetAtTime(110 + 140 * share + 25 * breath, ctx.currentTime, 0.5);
-  hum.level.gain.setTargetAtTime(0.05, ctx.currentTime, 1.5);
+  hum.tone.frequency.setTargetAtTime(
+    110 + 140 * share + 25 * breath,
+    ctx.currentTime,
+    0.5,
+  );
+  hum.level.gain.setTargetAtTime(HUM_LEVEL, ctx.currentTime, 1.5);
 }

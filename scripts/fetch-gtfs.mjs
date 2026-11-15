@@ -9,7 +9,14 @@ import { fileURLToPath } from "node:url";
 import { RAW, RAW_BUS, SOURCE_STAMP } from "./lib/paths.mjs";
 
 const BASE = "https://gitlab.com/LACMTA/gtfs_rail/-/raw/master";
-const FILES = ["feed_info.txt", "routes.txt", "trips.txt", "stops.txt", "stop_times.txt", "shapes.txt"];
+const FILES = [
+  "feed_info.txt",
+  "routes.txt",
+  "trips.txt",
+  "stops.txt",
+  "stop_times.txt",
+  "shapes.txt",
+];
 
 await mkdir(RAW, { recursive: true });
 
@@ -18,7 +25,9 @@ for (const name of FILES) {
   if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
   const text = await res.text();
   await writeFile(new URL(name, RAW), text);
-  console.log(`${name.padEnd(16)} ${(text.length / 1024).toFixed(0).padStart(6)} KB`);
+  console.log(
+    `${name.padEnd(16)} ${(text.length / 1024).toFixed(0).padStart(6)} KB`,
+  );
 }
 
 // --- busways: the bus feed only ships as one zip (stop_times.txt is ~300 MB unpacked), so stream
@@ -35,15 +44,22 @@ await writeFile(zip, Buffer.from(await res.arrayBuffer()));
 // Copies the header and every row that `keep` accepts; returns the values of `column` it kept.
 // Splitting on commas is enough here: none of the columns we read sit after a quoted field.
 async function extract(name, keep, column) {
-  const unzip = spawn("unzip", ["-p", zip, name], { stdio: ["ignore", "pipe", "inherit"] });
+  const unzip = spawn("unzip", ["-p", zip, name], {
+    stdio: ["ignore", "pipe", "inherit"],
+  });
   const out = createWriteStream(new URL(name, RAW_BUS));
   const kept = new Set();
-  let header, rows = 0;
+  let header,
+    rows = 0;
   for await (const line of createInterface({ input: unzip.stdout })) {
     const cells = line.replace(/^\uFEFF/, "").split(",");
     if (!header) header = cells;
-    else if (!keep(Object.fromEntries(header.map((h, i) => [h, cells[i]])))) continue;
-    else { kept.add(cells[header.indexOf(column)]); rows++; }
+    else if (!keep(Object.fromEntries(header.map((h, i) => [h, cells[i]]))))
+      continue;
+    else {
+      kept.add(cells[header.indexOf(column)]);
+      rows++;
+    }
     out.write(line + "\n");
   }
   await new Promise((done) => out.end(done));
@@ -51,17 +67,35 @@ async function extract(name, keep, column) {
   return kept;
 }
 
-const busRoutes = await extract("routes.txt", (r) => BUS_LINES.test(r.route_long_name), "route_id");
-const busTrips = await extract("trips.txt", (t) => busRoutes.has(t.route_id), "trip_id");
-const busStops = await extract("stop_times.txt", (st) => busTrips.has(st.trip_id), "stop_id");
+const busRoutes = await extract(
+  "routes.txt",
+  (r) => BUS_LINES.test(r.route_long_name),
+  "route_id",
+);
+const busTrips = await extract(
+  "trips.txt",
+  (t) => busRoutes.has(t.route_id),
+  "trip_id",
+);
+const busStops = await extract(
+  "stop_times.txt",
+  (st) => busTrips.has(st.trip_id),
+  "stop_id",
+);
 await extract("stops.txt", (s) => busStops.has(s.stop_id), "stop_id");
 await rm(zip);
 
 // Stamp which commit of each feed we pulled, so stale data is easy to spot.
 const head = async (project) => {
-  const c = await fetch(`https://gitlab.com/api/v4/projects/LACMTA%2F${project}/repository/commits/master`).then((r) => r.json());
+  const c = await fetch(
+    `https://gitlab.com/api/v4/projects/LACMTA%2F${project}/repository/commits/master`,
+  ).then((r) => r.json());
   console.log(`${project} commit ${c.id.slice(0, 8)} (${c.committed_date})`);
   return { commit: c.id, committed_at: c.committed_date };
 };
-const stamp = { fetched_at: new Date().toISOString(), ...(await head("gtfs_rail")), bus: await head("gtfs_bus") };
+const stamp = {
+  fetched_at: new Date().toISOString(),
+  ...(await head("gtfs_rail")),
+  bus: await head("gtfs_bus"),
+};
 await writeFile(SOURCE_STAMP, JSON.stringify(stamp, null, 2) + "\n");

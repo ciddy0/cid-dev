@@ -1,4 +1,4 @@
-import { COAST } from "./draw.js";
+import { COAST, CORNER } from "./draw.js";
 import { bendRadii, toD } from "./geometry.js";
 import { onLang, t } from "./lang.js";
 import { lineParts } from "./network.js";
@@ -157,6 +157,10 @@ const MAPS = {
 const PIC_W = 120,
   PIC_H = 80,
   PIC_PAD = 0.7; // schematic units of clear space round the network
+const PIC_LINE = 1.6; // lanes thick a line is drawn: thicker than on the main map, to read this small
+const PIC_STOP = 1.8; // lanes across a transfer station is, from its middle
+const STOP = 1.3; // a stop's radius on the hand-drawn maps, in the picture's units
+const PIN = 1.9; // from the middle of a job's pin to its sides
 
 function metroPicture(map) {
   const { lane, bounds: b } = map.layout;
@@ -167,12 +171,15 @@ function metroPicture(map) {
     oy = (PIC_H - h * k) / 2 - (b.minY - PIC_PAD) * k;
   const at = ([x, y]) => [+(ox + x * k).toFixed(2), +(oy + y * k).toFixed(2)];
   const tracks = map.lines.flatMap((line) =>
-    lineParts(line).map((part) => ({ line: line.id.toLowerCase(), pts: part.path.map(at) })),
+    lineParts(line).map((part) => ({
+      line: line.id.toLowerCase(),
+      pts: part.path.map(at),
+    })),
   );
-  const radii = bendRadii(tracks, 0.5 * k, lane * k);
+  const radii = bendRadii(tracks, CORNER * k, lane * k);
   return {
     at,
-    width: lane * k * 1.6, // thicker than the main map's, so they still read this small
+    width: lane * k * PIC_LINE,
     water: [toD(COAST.map(at)) + "Z"],
     rivers: [],
     paths: tracks.map(({ line, pts }, i) => [line, toD(pts, radii[i])]),
@@ -180,7 +187,7 @@ function metroPicture(map) {
     stops: Object.values(map.stations)
       .filter((s) => s.transfer)
       .map((s) => at([s.x, s.y])),
-    r: lane * k * 1.8,
+    r: lane * k * PIC_STOP,
   };
 }
 let redraw = () => {};
@@ -195,8 +202,18 @@ const DOTS = ["a", "b", "c", "d", "e", "g", "k"];
 // A job's picture: its map, and a diamond where the job was.
 function picture(job) {
   const pic = MAPS[job.map];
-  if (!pic) return `<svg class="pic" viewBox="0 0 ${PIC_W} ${PIC_H}" aria-hidden="true"></svg>`;
-  const { water, rivers, lines, paths = [], stops, at = (p) => p, width, r = 1.3 } = pic,
+  if (!pic)
+    return `<svg class="pic" viewBox="0 0 ${PIC_W} ${PIC_H}" aria-hidden="true"></svg>`;
+  const {
+      water,
+      rivers,
+      lines,
+      paths = [],
+      stops,
+      at = (p) => p,
+      width,
+      r = STOP,
+    } = pic,
     [x, y] = at(job.pin),
     run = (points) => `points="${points.join(" ")}"`;
   return `<svg class="pic" viewBox="0 0 ${PIC_W} ${PIC_H}" aria-hidden="true"${width ? ` style="--w: ${width.toFixed(2)}"` : ""}>
@@ -205,10 +222,11 @@ function picture(job) {
     ${lines.map(([line, points]) => `<polyline style="--c: var(--line-${line})" ${run(points)}/>`).join("")}
     ${paths.map(([line, d]) => `<path class="line" style="--c: var(--line-${line})" d="${d}"/>`).join("")}
     ${stops.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="${+r.toFixed(2)}"/>`).join("")}
-    <rect class="pin" x="${x - 1.9}" y="${y - 1.9}" width="3.8" height="3.8" transform="rotate(45 ${x} ${y})"/>
+    <rect class="pin" x="${x - PIN}" y="${y - PIN}" width="${2 * PIN}" height="${2 * PIN}" transform="rotate(45 ${x} ${y})"/>
   </svg>`;
 }
 
+const SLOP = 8; // px a finger wanders sideways before it has hold of the strip
 const SWIPE = 48; // px a swipe travels to move on a job
 const STRETCH = 0.35; // how far the strip follows a swipe past either end
 const CHIME_LATER = [72, 76]; // MIDI notes: C5 up to E5
@@ -273,11 +291,8 @@ export function resume() {
     if (had?.closest(".job")) named().focus({ preventScroll: true });
   }
 
-  // A swipe drags the strip along with it under an empty card, then lets go onto the next job
-  // if it went far enough. Up and down are left to the browser, which scrolls a card too tall
-  // for the screen.
   let swipe = null,
-    swiped = false; // so the click that ends a swipe isn't a tap on whatever it ended over
+    swiped = false;
   jobs.addEventListener("pointerdown", (e) => {
     if (!e.button)
       swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, on: false };
@@ -286,7 +301,7 @@ export function resume() {
     if (swipe?.id !== e.pointerId) return;
     const dx = e.clientX - swipe.x;
     if (!swipe.on) {
-      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(e.clientY - swipe.y))
+      if (Math.abs(dx) < SLOP || Math.abs(dx) < Math.abs(e.clientY - swipe.y))
         return;
       swipe.on = true;
       jobs.setPointerCapture(e.pointerId);
@@ -303,10 +318,10 @@ export function resume() {
     swipe = null;
     if (!on) return;
     swiped = true;
-    setTimeout(() => (swiped = false)); // the click, if one comes, comes before this
+    setTimeout(() => (swiped = false));
     strip.classList.remove("dragging");
     strip.style.setProperty("--drag", "0px");
-    show(); // the card opens again, on the next job if the swipe went far enough
+    show();
     if (Math.abs(dx) > SWIPE) pick(at - Math.sign(dx));
   };
   jobs.addEventListener("pointerup", lift);

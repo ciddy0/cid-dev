@@ -5,8 +5,17 @@ import { svg } from "./dom.js";
 import { clamp, easeInOutCubic, round } from "./math.js";
 import { prefs } from "./prefs.js";
 
-const LINE_MAX = 19; // how thick a line is drawn, in px, as close as the view zooms in
-const TAP_SLOP = 6; // px a pointer can wander and still be a tap rather than a drag
+const LINE_MAX = 19;
+const TAP_SLOP = 6;
+const LOOSE = 1.001;
+const WHEEL_RATE = 0.0015;
+const PINCH_RATE = 0.01;
+const FLING_BLEND = 0.4;
+const FLING_WITHIN = 80;
+const FLING_MIN = 0.1;
+const FLING_STOP = 0.02;
+const FLING_KEEP = 0.995;
+const FRAME_MAX = 50;
 
 // `box` is what the camera keeps on screen, and `lane` how thick the lines are drawn. Returns:
 //   roam, dragging      whether the visitor has the controls, and is dragging right now
@@ -19,7 +28,11 @@ const TAP_SLOP = 6; // px a pointer can wander and still be a tap rather than a 
 export function camera({ box, lane }) {
   const MAX_ZOOM = LINE_MAX / lane;
   const view = { x: 0, y: 0, k: 1 };
-  let rect, fit, anim, settle, touched = false;
+  let rect,
+    fit,
+    anim,
+    settle,
+    touched = false;
   const cam = {
     dragging: false,
     roam: false,
@@ -30,11 +43,11 @@ export function camera({ box, lane }) {
     },
   };
 
-  // A view kept on the map: an axis the map fits along stays centred; the other stops at the
-  // map's edge.
   cam.hold = ({ x, y, k }) => {
     const axis = (c, lo, size, span) =>
-      span >= size ? lo + size / 2 : clamp(c, lo + span / 2, lo + size - span / 2);
+      span >= size
+        ? lo + size / 2
+        : clamp(c, lo + span / 2, lo + size - span / 2);
     return {
       x: axis(x, box.x, box.w, rect.width / k),
       y: axis(y, box.y, box.h, rect.height / k),
@@ -51,8 +64,11 @@ export function camera({ box, lane }) {
     const w = rect.width / view.k,
       h = rect.height / view.k;
     if (cam.roam) Object.assign(view, cam.hold(view));
-    svg.setAttribute("viewBox", [view.x - w / 2, view.y - h / 2, w, h].map(round).join(" "));
-    svg.classList.toggle("loose", view.k > fit * 1.001);
+    svg.setAttribute(
+      "viewBox",
+      [view.x - w / 2, view.y - h / 2, w, h].map(round).join(" "),
+    );
+    svg.classList.toggle("loose", view.k > fit * LOOSE);
     cam.onMove();
   }
 
@@ -62,7 +78,6 @@ export function camera({ box, lane }) {
   };
 
   const stop = () => cancelAnimationFrame(anim);
-  // Ease the view over to `to`, reporting progress 0 → 1 to `onStep` along the way.
   cam.glide = (to, ms, onStep = () => {}, onDone = () => {}) => {
     stop();
     touched = false;
@@ -93,7 +108,7 @@ export function camera({ box, lane }) {
   }
   function resize() {
     measure();
-    settle?.(); // a glide under way was aimed at the old size: finish it, then re-place
+    settle?.();
     if (!touched) {
       stop();
       Object.assign(view, cam.rest());
@@ -105,7 +120,7 @@ export function camera({ box, lane }) {
     view.x -= dx / view.k;
     view.y -= dy / view.k;
   };
-  // Zoom by `factor`, keeping whatever is under the screen point (px, py) where it is.
+
   function zoom(px, py, factor) {
     const ox = px - rect.left - rect.width / 2,
       oy = py - rect.top - rect.height / 2;
@@ -115,17 +130,20 @@ export function camera({ box, lane }) {
     view.k = k;
   }
 
-  const fingers = new Map(); // pointer id → last clientX / clientY
-  let travel = 0, // px moved since the first finger went down; a tap stays under TAP_SLOP
+  const fingers = new Map();
+  let travel = 0,
     last = 0,
     vx = 0,
-    vy = 0; // px per ms, smoothed, for the fling after a drag
+    vy = 0;
   const centre = () => {
     const pts = [...fingers.values()];
     return {
       x: pts.reduce((sum, p) => sum + p.x, 0) / pts.length,
       y: pts.reduce((sum, p) => sum + p.y, 0) / pts.length,
-      spread: pts.length > 1 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0,
+      spread:
+        pts.length > 1
+          ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+          : 0,
     };
   };
 
@@ -150,8 +168,8 @@ export function camera({ box, lane }) {
     svg.classList.add("dragging");
     const dt = Math.max(1, e.timeStamp - last);
     last = e.timeStamp;
-    vx = vx * 0.6 + (dx / dt) * 0.4;
-    vy = vy * 0.6 + (dy / dt) * 0.4;
+    vx = vx * (1 - FLING_BLEND) + (dx / dt) * FLING_BLEND;
+    vy = vy * (1 - FLING_BLEND) + (dy / dt) * FLING_BLEND;
     pan(dx, dy);
     if (was.spread && now.spread) zoom(now.x, now.y, now.spread / was.spread);
     apply();
@@ -162,17 +180,22 @@ export function camera({ box, lane }) {
     cam.dragging = false;
     svg.classList.remove("dragging");
     if (tap) return cam.onTap(e);
-    if (!prefs.motion || e.timeStamp - last > 80 || Math.hypot(vx, vy) < 0.1) return;
+    if (
+      !prefs.motion ||
+      e.timeStamp - last > FLING_WITHIN ||
+      Math.hypot(vx, vy) < FLING_MIN
+    )
+      return;
     // Fling: carry on at the speed the finger left with, slowing to a stop.
     let then = performance.now();
     const coast = (now) => {
-      const dt = Math.min(now - then, 50);
+      const dt = Math.min(now - then, FRAME_MAX);
       then = now;
       pan(vx * dt, vy * dt);
-      vx *= 0.995 ** dt;
-      vy *= 0.995 ** dt;
+      vx *= FLING_KEEP ** dt;
+      vy *= FLING_KEEP ** dt;
       apply();
-      if (Math.hypot(vx, vy) > 0.02) anim = requestAnimationFrame(coast);
+      if (Math.hypot(vx, vy) > FLING_STOP) anim = requestAnimationFrame(coast);
     };
     anim = requestAnimationFrame(coast);
   };
@@ -184,8 +207,11 @@ export function camera({ box, lane }) {
       e.preventDefault();
       stop();
       touched = true;
-      // A trackpad pinch arrives as a ctrl+wheel with small deltas.
-      zoom(e.clientX, e.clientY, Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+      zoom(
+        e.clientX,
+        e.clientY,
+        Math.exp(-e.deltaY * (e.ctrlKey ? PINCH_RATE : WHEEL_RATE)),
+      );
       apply();
     },
     { passive: false },
@@ -195,7 +221,6 @@ export function camera({ box, lane }) {
   cam.sees = (s) =>
     Math.abs(s.x - view.x) * view.k <= rect.width / 2 &&
     Math.abs(s.y - view.y) * view.k <= rect.height / 2;
-  // Bring a point into view, for keyboard focus landing on a station that is off screen.
   cam.reveal = (s) => {
     if (cam.sees(s)) return;
     stop();

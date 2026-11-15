@@ -3,6 +3,12 @@
 // tested) under Node as well.
 import { round } from "./math.js";
 
+const STRAIGHT = 1e-3;
+const HAIRPIN = 1.5;
+const ALIGNED = 0.999;
+const ABREAST = 1e-3;
+const BUNDLE = 4;
+
 // The bend at pts[i]: unit directions in and out, the unit bisector pointing into the turn, half
 // the angle turned through and the largest radius both legs have room for. Null where the line
 // ends or runs straight on.
@@ -17,7 +23,7 @@ export function bendAt(pts, i) {
     v = [(next[0] - x) / outLen, (next[1] - y) / outLen];
   const cross = u[0] * v[1] - u[1] * v[0];
   const half = Math.atan2(Math.abs(cross), u[0] * v[0] + u[1] * v[1]) / 2;
-  if (half < 1e-3 || half > 1.5) return null;
+  if (half < STRAIGHT || half > HAIRPIN) return null;
   const k = 2 * Math.sin(half);
   return {
     x,
@@ -45,8 +51,6 @@ export function bendRadii(tracks, cut, lane) {
   const done = new Set();
   for (const b of bends) {
     if (done.has(b)) continue;
-    // Its neighbours: the same turn, with the corner a few lanes along the bisector. `d` is how
-    // far further into the turn each one runs.
     const group = bends.flatMap((g) => {
       const dx = g.x - b.x,
         dy = g.y - b.y;
@@ -54,15 +58,16 @@ export function bendRadii(tracks, cut, lane) {
         g === b ||
         (!done.has(g) &&
           g.t !== b.t &&
-          g.u[0] * b.u[0] + g.u[1] * b.u[1] > 0.999 &&
-          g.v[0] * b.v[0] + g.v[1] * b.v[1] > 0.999 &&
-          Math.abs(dx * b.n[1] - dy * b.n[0]) < 1e-3 &&
-          Math.hypot(dx, dy) < 4 * lane);
-      return same ? [{ g, d: (dx * b.n[0] + dy * b.n[1]) * Math.cos(b.half) }] : [];
+          g.u[0] * b.u[0] + g.u[1] * b.u[1] > ALIGNED &&
+          g.v[0] * b.v[0] + g.v[1] * b.v[1] > ALIGNED &&
+          Math.abs(dx * b.n[1] - dy * b.n[0]) < ABREAST &&
+          Math.hypot(dx, dy) < BUNDLE * lane);
+      return same
+        ? [{ g, d: (dx * b.n[0] + dy * b.n[1]) * Math.cos(b.half) }]
+        : [];
     });
     const mid = group.reduce((sum, { d }) => sum + d, 0) / group.length;
     const rs = group.map(({ g, d }) => g.r - (d - mid));
-    // Tighten the whole bundle if a short leg leaves one of its lines no room for its arc.
     const over = Math.max(0, ...group.map(({ g }, k) => rs[k] - g.room));
     group.forEach(({ g }, k) => {
       radii[g.t][g.i] = Math.max(0, rs[k] - over);
@@ -135,21 +140,26 @@ export function lineEnds(pts) {
     const len = Math.hypot(x - px, y - py);
     return { x, y, dx: (x - px) / len, dy: (y - py) / len };
   };
-  return pts.length < 2 ? [] : [end(pts[0], pts[1]), end(pts.at(-1), pts.at(-2))];
+  return pts.length < 2
+    ? []
+    : [end(pts[0], pts[1]), end(pts.at(-1), pts.at(-2))];
 }
 
 // A bounding box that grows to take in whatever it is told about.
 export function bounds() {
-  const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const b = {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+  };
   return {
-    // Take in the point (x, y), or the disc of radius r around it.
     cover(x, y, r = 0) {
       b.minX = Math.min(b.minX, x - r);
       b.minY = Math.min(b.minY, y - r);
       b.maxX = Math.max(b.maxX, x + r);
       b.maxY = Math.max(b.maxY, y + r);
     },
-    // The box as { x, y, w, h }, with `pad` of clear space all round.
     box: (pad = 0) => ({
       x: b.minX - pad,
       y: b.minY - pad,

@@ -22,7 +22,9 @@ export function rail({ pts, radii }, parent) {
   const bends = pts.flatMap((p, i) => {
     if (i) run += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]);
     const b = radii[i] && bendAt(pts, i);
-    return b ? [{ d: run, cut: radii[i] * Math.tan(b.half), arc: radii[i] * b.half }] : [];
+    return b
+      ? [{ d: run, cut: radii[i] * Math.tan(b.half), arc: radii[i] * b.half }]
+      : [];
   });
   return {
     total,
@@ -31,10 +33,10 @@ export function rail({ pts, radii }, parent) {
         i = Math.min(n - 1, Math.floor(f));
       return [0, 1].map((k) => xy[i][k] + (xy[i + 1][k] - xy[i][k]) * (f - i));
     },
-    // Each bend swaps `cut` of straight either side of its corner for a shorter arc.
     len: (d) =>
       bends.reduce(
-        (s, b) => s - (clamp(d - b.d, -b.cut, b.cut) + b.cut) * (1 - b.arc / b.cut),
+        (s, b) =>
+          s - (clamp(d - b.d, -b.cut, b.cut) + b.cut) * (1 - b.arc / b.cut),
         d,
       ),
     near([x, y]) {

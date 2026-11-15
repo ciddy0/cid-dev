@@ -5,8 +5,20 @@ import { adapter } from "../worker/adapt.js";
 // Three stations a kilometre or so apart heading north, and one only called at on the way back.
 const map = {
   projection: { lat0: 34, lon0: -118 },
-  lines: [{ id: "A", route: "801", stations: ["a", "b", "c"], extraPaths: [{ stations: ["a", "x", "c"] }] }],
-  stations: { a: { geo: [0, 0] }, b: { geo: [0, -1] }, c: { geo: [0, -2] }, x: { geo: [1, -1] } },
+  lines: [
+    {
+      id: "A",
+      route: "801",
+      stations: ["a", "b", "c"],
+      extraPaths: [{ stations: ["a", "x", "c"] }],
+    },
+  ],
+  stations: {
+    a: { geo: [0, 0] },
+    b: { geo: [0, -1] },
+    c: { geo: [0, -2] },
+    x: { geo: [1, -1] },
+  },
   platforms: { b1: "b" },
 };
 const adapt = adapter(map);
@@ -25,7 +37,12 @@ const vehicle = (stopId, currentStatus, directionId, km, route = "801") => ({
 
 test("a train on its way is between the stop before and the one it is headed for", () => {
   assert.deepEqual(adapt(vehicle("b1", "IN_TRANSIT_TO", 0, 0.25)), {
-    id: "101-102", line: "A", seen: 1700000000, from: "a", to: "b", progress: 0.25,
+    id: "101-102",
+    line: "A",
+    seen: 1700000000,
+    from: "a",
+    to: "b",
+    progress: 0.25,
   });
   const { from, to, progress } = adapt(vehicle("c", "IN_TRANSIT_TO", 0, 1.5));
   assert.deepEqual([from, to, progress], ["b", "c", 0.5]);

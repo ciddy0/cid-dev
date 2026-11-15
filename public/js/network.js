@@ -5,13 +5,10 @@ export async function loadMap() {
   return res.json();
 }
 
-// A line's colour: the page's own palette (--line-a …) where it has one, else the agency's.
 export const lineColor = (line) =>
   `var(--line-${line.id.toLowerCase()}, ${line.color})`;
 
-// And the colour of the letter written on it.
-export const lineInk = (line) => `var(--ink-${line.id.toLowerCase()}, ${line.textColor})`;
+export const lineInk = (line) =>
+  `var(--ink-${line.id.toLowerCase()}, ${line.textColor})`;
 
-// Everything a line is drawn as: its main path, then any extra paths (stations only served in
-// one direction). Each has `stations`, `path`, `stops` and `at`.
 export const lineParts = (line) => [line, ...(line.extraPaths ?? [])];

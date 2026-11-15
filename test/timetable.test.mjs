@@ -1,18 +1,48 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { NOBODY, SEATS, SHAPES, exchange, runs, scheduled } from "../public/js/timetable.js";
+import {
+  NOBODY,
+  SEATS,
+  SHAPES,
+  exchange,
+  runs,
+  scheduled,
+} from "../public/js/timetable.js";
 
 // A straight rail: distances along it are its x coordinates.
-const straight = (total) => ({ total, len: (d) => d, at: (s) => [s, 0], near: ([x]) => x });
+const straight = (total) => ({
+  total,
+  len: (d) => d,
+  at: (s) => [s, 0],
+  near: ([x]) => x,
+});
 
-const line = { id: "A", stations: ["a", "b", "c"], times: [0, 100, 250], at: [0, 1, 2], trainsPerHour: 12 };
+const line = {
+  id: "A",
+  stations: ["a", "b", "c"],
+  times: [0, 100, 250],
+  at: [0, 1, 2],
+  trainsPerHour: 12,
+};
 const track = { line, part: line };
 const rails = new Map([[track, straight(2)]]);
 
 test("runs go out and back, hop by hop", () => {
   const [out, back] = runs(line, [track], rails);
-  assert.deepEqual(out.map((h) => [h.from, h.to, h.dep, h.arr]), [["a", "b", 0, 100], ["b", "c", 100, 250]]);
-  assert.deepEqual(back.map((h) => [h.from, h.to, h.dep, h.arr]), [["c", "b", 0, 150], ["b", "a", 150, 250]]);
+  assert.deepEqual(
+    out.map((h) => [h.from, h.to, h.dep, h.arr]),
+    [
+      ["a", "b", 0, 100],
+      ["b", "c", 100, 250],
+    ],
+  );
+  assert.deepEqual(
+    back.map((h) => [h.from, h.to, h.dep, h.arr]),
+    [
+      ["c", "b", 0, 150],
+      ["b", "a", 150, 250],
+    ],
+  );
   assert.deepEqual(out[0].legs, [[rails.get(track), 0, 1]]);
   assert.deepEqual(back[0].legs, [[rails.get(track), 2, 1]]);
 });
@@ -22,9 +52,24 @@ test("the way back detours along an extra path", () => {
   const extra = { line, part: loop };
   const both = new Map([...rails, [extra, straight(3)]]);
   const [out, back] = runs(line, [track, extra], both);
-  assert.deepEqual(out.map((h) => h.to), ["b", "c"]);
-  assert.deepEqual(back.map((h) => [h.from, h.to]), [["c", "x"], ["x", "a"]]);
-  assert.deepEqual(back.map((h) => [h.dep, h.arr]), [[0, 125], [125, 250]]);
+  assert.deepEqual(
+    out.map((h) => h.to),
+    ["b", "c"],
+  );
+  assert.deepEqual(
+    back.map((h) => [h.from, h.to]),
+    [
+      ["c", "x"],
+      ["x", "a"],
+    ],
+  );
+  assert.deepEqual(
+    back.map((h) => [h.dep, h.arr]),
+    [
+      [0, 125],
+      [125, 250],
+    ],
+  );
 });
 
 test("the scheduled feed keeps the line's frequency, every train between two neighbours", () => {
@@ -38,7 +83,10 @@ test("the scheduled feed keeps the line's frequency, every train between two nei
       assert.equal(s.line, "A");
       assert.ok(hops.has(`${s.from} ${s.to}`));
       assert.ok(s.progress >= 0 && s.progress <= 1);
-      assert.ok(s.load.length === SEATS && s.load.every((who) => !who || SHAPES.includes(who)));
+      assert.ok(
+        s.load.length === SEATS &&
+          s.load.every((who) => !who || SHAPES.includes(who)),
+      );
     }
   }
   assert.deepEqual(feed(42), feed(42)); // from the clock alone
@@ -47,7 +95,9 @@ test("the scheduled feed keeps the line's frequency, every train between two nei
 test("passengers change over one at a time, off before on", () => {
   const was = ["circle", "square", null, "square", null, null],
     now = ["circle", null, "triangle", "circle", null, null]; // two off, two on
-  const loads = [0, 0.2, 0.4, 0.7, 0.9, 1].map((through) => exchange(was, now, through));
+  const loads = [0, 0.2, 0.4, 0.7, 0.9, 1].map((through) =>
+    exchange(was, now, through),
+  );
   assert.deepEqual(loads[0], was);
   assert.deepEqual(loads[1], ["circle", null, null, "square", null, null]);
   assert.deepEqual(loads[2], ["circle", null, null, null, null, null]);

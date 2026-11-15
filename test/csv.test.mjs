@@ -3,11 +3,15 @@ import { test } from "node:test";
 import { parseCSV } from "../scripts/lib/csv.mjs";
 
 test("parses rows into objects keyed by the header", () => {
-  assert.deepEqual(parseCSV("a,b\n1,2\n3,4\n"), [{ a: "1", b: "2" }, { a: "3", b: "4" }]);
+  assert.deepEqual(parseCSV("a,b\n1,2\n3,4\n"), [
+    { a: "1", b: "2" },
+    { a: "3", b: "4" },
+  ]);
 });
 
 test("handles a BOM, CRLF, blank lines, quotes and a missing last newline", () => {
-  const text = '﻿id,name\r\n1,"Pico, Aliso"\r\n\r\n2,"say ""hi"""\r\n3,"two\nlines"';
+  const text =
+    '﻿id,name\r\n1,"Pico, Aliso"\r\n\r\n2,"say ""hi"""\r\n3,"two\nlines"';
   assert.deepEqual(parseCSV(text), [
     { id: "1", name: "Pico, Aliso" },
     { id: "2", name: 'say "hi"' },

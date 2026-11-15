@@ -1,0 +1,4 @@
+# Written by scripts/build-map.mjs, on one line to stay small.
+public/data/metro.json
+package-lock.json
+.claude/

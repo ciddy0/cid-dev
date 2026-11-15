@@ -5,12 +5,13 @@
 // live.js returns the same thing.
 import { clamp, easeInOutQuad } from "./math.js";
 
-const SPEED = 40; // timetable seconds per real second
-const DWELL = 20; // timetable seconds a train stands at each station
-const TURN = 180; // and at the end of the line before heading back
-export const SEATS = 6; // passengers a car holds, two abreast
+const SPEED = 40;
+const DWELL = 20;
+const TURN = 180;
+export const SEATS = 6;
 export const SHAPES = ["circle", "triangle", "square"];
-export const NOBODY = Array(SEATS).fill(null); // the load of an empty car
+export const NOBODY = Array(SEATS).fill(null);
+const TAKEN = [3, 5];
 
 // A line's two runs, out and back, each a list of hops between neighbouring stations: who from,
 // who to, when (timetable seconds into the run) and the `legs` of track ridden, as
@@ -33,10 +34,9 @@ export function runs(line, tracks, rails) {
     const a = back.findIndex((s) => s.id === ids.at(-1)),
       b = back.findIndex((s) => s.id === ids[0]);
     if (a < 0 || b < a) continue;
-    // No times of their own: spread over the stretch of main line they stand in for.
     const t = (k) => back[b].t + ((back[a].t - back[b].t) * at[k]) / at.at(-1);
     const stops = ids.map((_, k) => stop(extra, k, t(k))).reverse();
-    stops[0].tip = rails.get(extra).total; // the ends of the extra's rail, where it meets the main one
+    stops[0].tip = rails.get(extra).total;
     stops.at(-1).tip = 0;
     back.splice(a, b - a + 1, ...stops);
   }
@@ -63,11 +63,16 @@ export function runs(line, tracks, rails) {
 // The passengers of train number `train` after `stop` stops, seat by seat. They are made up:
 // each seat's rider stays on for a few stops, then leaves it to another or to nobody.
 const dice = (...seed) =>
-  seed.reduce((h, v) => Math.imul(h ^ v, 0x9e3779b1) ^ (h >>> 15), 0x2545f491) >>> 8;
+  seed.reduce(
+    (h, v) => Math.imul(h ^ v, 0x9e3779b1) ^ (h >>> 15),
+    0x2545f491,
+  ) >>> 8;
 export const riders = (train, stop) =>
   Array.from({ length: SEATS }, (_, seat) => {
     const roll = dice(train, seat, Math.floor((stop + seat * 2) / (3 + seat)));
-    return roll % 5 < 3 ? SHAPES[(roll >> 4) % SHAPES.length] : null;
+    return roll % TAKEN[1] < TAKEN[0]
+      ? SHAPES[(roll >> 4) % SHAPES.length]
+      : null;
   });
 
 // The load `through` (0 → 1) a stop that a train pulls into carrying `was` and out of carrying
@@ -75,11 +80,18 @@ export const riders = (train, stop) =>
 // theirs.
 export function exchange(was, now, through) {
   if (through >= 1) return now;
-  const off = was.flatMap((shape, seat) => (shape && shape !== now[seat] ? [seat] : [])),
-    on = now.flatMap((shape, seat) => (shape && shape !== was[seat] ? [seat] : []));
-  const done = Math.floor(Math.max(0, through) * (off.length + on.length) + 0.5);
+  const off = was.flatMap((shape, seat) =>
+      shape && shape !== now[seat] ? [seat] : [],
+    ),
+    on = now.flatMap((shape, seat) =>
+      shape && shape !== was[seat] ? [seat] : [],
+    );
+  const done = Math.floor(
+    Math.max(0, through) * (off.length + on.length) + 0.5,
+  );
   return was.map((shape, seat) => {
-    if (on.includes(seat) && off.length + on.indexOf(seat) < done) return now[seat];
+    if (on.includes(seat) && off.length + on.indexOf(seat) < done)
+      return now[seat];
     return off.includes(seat) && off.indexOf(seat) < done ? null : shape;
   });
 }
@@ -107,7 +119,11 @@ export function scheduled(routes) {
           from: hop.from,
           to: hop.to,
           progress: easeInOutQuad(clamp(moved, 0, 1)),
-          load: exchange(riders(r * 1000 + k, stops - 1), riders(r * 1000 + k, stops), stood / DWELL),
+          load: exchange(
+            riders(r * 1000 + k, stops - 1),
+            riders(r * 1000 + k, stops),
+            stood / DWELL,
+          ),
         };
       });
     });
