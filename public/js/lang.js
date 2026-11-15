@@ -36,8 +36,8 @@ const TEXT = {
     },
     present: "Present",
     docsCard: `<h2>What This Is</h2>
-      <p>A map of the LA Metro rail network, with the trains where Metro says they are right
-        now. Mostly I just wanted something nice to look at.</p>
+      <p>A map of the LA Metro rail network, with the live trains.
+        Just wanted to make some sort of artwork of the data inspired by Mini Metro :3</p>
       <h2>Getting Around</h2>
       <p><b>Map</b> opens the map and the trains.</p>
       <p><b>Drag</b> to move, <b>pinch or scroll</b> to zoom.</p>
@@ -45,27 +45,23 @@ const TEXT = {
       <p><b>Tab</b> steps through the stations.</p>
       <p>The arrow up top (or <b>Esc</b>) brings you back.</p>
       <h2>The Map</h2>
-      <p>The lines and stations come from Metro's GTFS feed, the timetable data they publish.</p>
+      <p>The lines and stations come from Metro's GTFS feed.</p>
       <p>A script turns that into lines and stations, then snaps every segment to 45° and 90°
         bends and spreads the stations out. The ones that still looked bad got moved by hand.</p>
-      <p>It's plain HTML, SVG and JavaScript.</p>
       <h2>The Trains</h2>
       <p>Metro streams where every train is. One small server on Cloudflare keeps the only
         connection to it and sends everyone a snapshot every few seconds, so Metro sees one
         visitor no matter how many of you there are.</p>
       <p>It also saves a snapshot every minute. When you open the map you see the last hour
         played back in half a minute, every train stopping at its stations, then it settles
-        into live.</p>
-      <p>Turn on sound and every train that pulls in plays a note.</p>
+        into live. Currently working on storing weekly data :D</p>
+      <p>I also tried to make the sound feel immersive, so I hope you enjoy.</p>
       <h2>Limitations</h2>
       <p>It's a schematic, not to scale. Distances are squished and stretched to fit.</p>
       <p>Trains are only as live as Metro's reports, which can be a few minutes old. Trains on a
         layover or with a dead tracker just sit there.</p>
-      <p>If the live feed goes quiet for two minutes, the map falls back to the timetable. Those
-        trains are where the schedule says, not where they really are.</p>
-      <p>The replay needs a recording, so the first visit after I deploy starts without one.</p>
       <p>The J Line isn't drawn yet, and neither is anything under construction.</p>
-      <p>Not affiliated with LA Metro. Please don't plan a trip with it.</p>
+      <p>Not affiliated with LA Metro. Please don't plan a trip with it XD</p>
       <h2>Credits</h2>
       <p>Made by cid</p>
       <p>Data from LA Metro</p>
@@ -125,8 +121,8 @@ const TEXT = {
     },
     present: "Presente",
     docsCard: `<h2>Qué es esto</h2>
-      <p>Un mapa de la red de trenes de LA Metro, con los trenes donde Metro dice que están
-        ahorita. Más que nada quería algo bonito para ver.</p>
+      <p>Un mapa de la red de trenes de LA Metro, con los trenes en vivo.
+        Solo quería hacer una especie de arte con los datos, inspirado en Mini Metro :3</p>
       <h2>Cómo moverte</h2>
       <p><b>Mapa</b> abre el mapa y los trenes.</p>
       <p><b>Arrastra</b> para moverte, <b>pellizca o desplaza</b> para acercar o alejar.</p>
@@ -135,29 +131,24 @@ const TEXT = {
       <p><b>Tab</b> recorre las estaciones.</p>
       <p>La flecha de arriba (o <b>Esc</b>) te regresa.</p>
       <h2>El mapa</h2>
-      <p>Las líneas y las estaciones salen del feed GTFS de Metro, los horarios que
-        publican.</p>
+      <p>Las líneas y las estaciones salen del feed GTFS de Metro.</p>
       <p>Un script los convierte en líneas y estaciones, endereza cada tramo en ángulos de 45° y
         90° y separa las estaciones. Las que todavía se veían mal las acomodé a mano.</p>
-      <p>Es puro HTML, SVG y JavaScript.</p>
       <h2>Los trenes</h2>
       <p>Metro transmite dónde está cada tren. Un servidor chiquito en Cloudflare tiene la única
         conexión y le manda a todos una foto cada pocos segundos, así Metro ve un solo visitante
         sin importar cuántos sean.</p>
       <p>También guarda una foto cada minuto. Al abrir el mapa ves la última hora en medio
-        minuto, cada tren parando en sus estaciones, y luego se queda en vivo.</p>
-      <p>Si prendes el sonido, cada tren que llega toca una nota.</p>
+        minuto, cada tren parando en sus estaciones, y luego se queda en vivo. Ahorita estoy
+        trabajando en guardar datos semanales :D</p>
+      <p>También intenté que el sonido se sintiera inmersivo, ojalá lo disfrutes.</p>
       <h2>Limitaciones</h2>
       <p>Es un esquema, no está a escala. Las distancias se aprietan y se estiran para que
         quepa.</p>
       <p>Los trenes son tan en vivo como los reportes de Metro, que pueden tener unos minutos.
         Los trenes en descanso o con el rastreador apagado se quedan quietos.</p>
-      <p>Si el feed en vivo se calla dos minutos, el mapa usa los horarios. Esos trenes están
-        donde dice el horario, no donde de verdad están.</p>
-      <p>La repetición necesita una grabación, así que la primera visita después de que
-        actualizo empieza sin ella.</p>
       <p>La Línea J todavía no está dibujada, ni nada de lo que está en construcción.</p>
-      <p>No tiene nada que ver con LA Metro. Porfa no planees un viaje con esto.</p>
+      <p>No tiene nada que ver con LA Metro. Porfa no planees un viaje con esto XD</p>
       <h2>Créditos</h2>
       <p>Hecho por cid</p>
       <p>Datos de LA Metro</p>
