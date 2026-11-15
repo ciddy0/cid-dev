@@ -26,25 +26,26 @@
         <path d="M2 12h18M11.5 4.5 19.5 12l-8 7.5" />
       </symbol>
     </svg>
-    <nav id="menu" data-t-label="menu">
+    <!-- Out of sight until js/menu.js has a map to fly over. -->
+    <nav id="menu" class="waiting" data-t-label="menu">
       <button data-go="view">
-        <svg class="arrow"><use href="#arrow" /></svg><span data-t="view"></span>
+        <svg class="arrow" aria-hidden="true"><use href="#arrow" /></svg><span data-t="view"></span>
       </button>
       <button data-go="resume">
-        <svg class="arrow" style="--turn: -45deg"><use href="#arrow" /></svg
+        <svg class="arrow" aria-hidden="true" style="--turn: -45deg"><use href="#arrow" /></svg
         ><span data-t="resume"></span>
       </button>
       <button data-go="docs">
-        <svg class="arrow" style="--turn: 45deg"><use href="#arrow" /></svg
+        <svg class="arrow" aria-hidden="true" style="--turn: 45deg"><use href="#arrow" /></svg
         ><span data-t="docs"></span>
       </button>
       <button data-go="settings">
-        <svg class="arrow" style="--turn: 90deg"><use href="#arrow" /></svg
+        <svg class="arrow" aria-hidden="true" style="--turn: 90deg"><use href="#arrow" /></svg
         ><span data-t="settings"></span>
       </button>
     </nav>
     <button id="back" data-t-label="back" hidden>
-      <svg class="arrow"><use href="#arrow" /></svg>
+      <svg class="arrow" aria-hidden="true"><use href="#arrow" /></svg>
     </button>
 
     <!-- Every data-t and data-t-label names its words in js/lang.js. -->
@@ -81,7 +82,7 @@
         </div>
       </div>
     </section>
-    <p id="status" hidden></p>
+    <p id="status" role="alert" hidden></p>
     <noscript><p class="status">The map needs JavaScript to draw.</p></noscript>
     <script type="module" src="js/main.js"></script>
   </body>

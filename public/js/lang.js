@@ -96,7 +96,7 @@ const TEXT = {
     jobs: {
       csulb: {
         kind: "Contrato",
-        blurb: `Ayudé a estudiantes lógica digital y ensamblador, programación y fundamentos de
+        blurb: `Ayudé a estudiantes en lógica digital y ensamblador, programación y fundamentos de
           computación.`,
         stat: ["3", "materias"],
       },
@@ -119,6 +119,8 @@ const TEXT = {
         stat: ["4", "fuentes de energía estudiadas"],
       },
     },
+    // The skills that are words rather than names: the rest read the same in every language.
+    skills: { "Clean Energy": "Energía limpia", Research: "Investigación" },
     present: "Presente",
     docsCard: `<h2>Qué es esto</h2>
       <p>Un mapa de la red de trenes de LA Metro, con los trenes en vivo.

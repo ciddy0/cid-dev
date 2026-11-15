@@ -232,7 +232,7 @@ export function resume() {
       const when = `${month(job.from)} – ${job.to ? month(job.to) : t("present")}`;
       const skills = job.skills.map(
         (s, k) =>
-          `<span class="skill" style="--c: var(--line-${DOTS[k % DOTS.length]})">${s}</span>`,
+          `<span class="skill" style="--c: var(--line-${DOTS[k % DOTS.length]})">${t("skills")?.[s] ?? s}</span>`,
       );
       return `<article class="job" data-i="${i}">
         <h2><button>${job.name}</button></h2>

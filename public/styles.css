@@ -17,6 +17,10 @@
   --label-ink: #f7f5ef;
   --muted: #6d7380;
   --ocean: #121b26;
+  --shadow: rgba(0, 0, 0, 0.45);
+  /* Round words that sit straight on the map, so they read over the lines behind. */
+  --glow: 0 0 3px var(--bg), 0 0 8px var(--bg), 0 0 14px var(--bg);
+  --dim: 0.4; /* what is waiting, or can't be pressed */
   --font:
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
@@ -184,7 +188,7 @@ main {
   background: var(--label-bg);
   box-shadow:
     0 0 0 1px var(--label-edge),
-    0 6px 20px rgba(0, 0, 0, 0.45);
+    0 6px 20px var(--shadow);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -212,6 +216,16 @@ main {
 #label .name {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* For screen readers only: the label's station and lines said in words (label.js). */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .arrow {
@@ -262,7 +276,12 @@ button:focus-visible {
   line-height: 1.12;
   letter-spacing: -0.02em;
 }
+/* Until there is a map to fly over (menu.js), and for good if it can't be loaded. */
+#menu.waiting {
+  visibility: hidden;
+}
 #menu button {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.18em;
@@ -277,11 +296,20 @@ button:focus-visible {
   background: var(--line-a);
   color: var(--dot);
 }
-#menu button:hover span {
-  filter: brightness(1.12);
+/* A finger can press anywhere from halfway to the item above to halfway to the one below. */
+#menu button::before {
+  content: "";
+  position: absolute;
+  inset: -0.07em -0.3em;
+}
+/* Hovers are for a mouse: a finger's would stick after the tap. */
+@media (hover: hover) {
+  #menu button:hover span {
+    filter: brightness(1.12);
+  }
 }
 #menu.choosing button:not(.picked) {
-  opacity: 0.4;
+  opacity: var(--dim);
 }
 #menu .picked {
   transform: scale(1.22);
@@ -299,9 +327,11 @@ button:focus-visible {
   filter: drop-shadow(0 0 3px var(--bg));
   transition: transform 0.12s;
 }
-#back:hover {
-  transform: scale(1.15);
-  filter: drop-shadow(0 0 3px var(--bg)) brightness(1.12);
+@media (hover: hover) {
+  #back:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 3px var(--bg)) brightness(1.12);
+  }
 }
 #back:active {
   transform: scale(0.95);
@@ -424,13 +454,12 @@ button:focus-visible {
   margin: 0;
   font-size: 1em;
   color: var(--muted);
-  text-shadow:
-    0 0 3px var(--bg),
-    0 0 8px var(--bg),
-    0 0 14px var(--bg);
+  text-shadow: var(--glow);
 }
-.job:hover:not(.on) h2 {
-  color: color-mix(in srgb, var(--muted), var(--label-ink) 45%);
+@media (hover: hover) {
+  .job:hover:not(.on) h2 {
+    color: color-mix(in srgb, var(--muted), var(--label-ink) 45%);
+  }
 }
 .job h2 button {
   font-size: 2em;
@@ -445,10 +474,12 @@ button:focus-visible {
   width: 100%;
   height: var(--pic);
   margin-top: var(--row);
-  opacity: 0.4;
+  opacity: var(--dim);
 }
-.job:hover:not(.on) .pic {
-  opacity: 0.6;
+@media (hover: hover) {
+  .job:hover:not(.on) .pic {
+    opacity: 0.6;
+  }
 }
 .pic {
   --water: color-mix(in srgb, var(--line-a) 55%, #bfe9f5);
@@ -587,6 +618,13 @@ button:focus-visible {
   overflow: hidden;
   opacity: 0.88;
 }
+/* On the narrowest screens the same words wrap onto more lines, which the room made for them
+   there (--words) is for. */
+@media (max-width: 349px) {
+  .full p.blurb {
+    -webkit-line-clamp: 5;
+  }
+}
 .full p.stat {
   display: flex;
   align-items: baseline;
@@ -613,10 +651,7 @@ button:focus-visible {
   font-size: clamp(16px, 2.6vmin, 20px);
   line-height: 1.35;
   text-align: center;
-  text-shadow:
-    0 0 3px var(--bg),
-    0 0 8px var(--bg),
-    0 0 14px var(--bg);
+  text-shadow: var(--glow);
   pointer-events: auto;
 }
 .docs h2 {
@@ -652,6 +687,21 @@ button:focus-visible {
   align-items: center;
   padding: 0.15em 0;
   text-align: right;
+}
+/* A switch and a stepper's arrow can be pressed out to halfway to the next row, which makes
+   each a finger tall on a phone without moving anything. */
+.switch,
+.stepper button {
+  position: relative;
+}
+.switch::before,
+.stepper button::after {
+  content: "";
+  position: absolute;
+  inset: -0.175em 0;
+}
+.stepper button::after {
+  inset: -0.325em;
 }
 
 .switch::after {
@@ -693,7 +743,7 @@ button:focus-visible {
   rotate: 180deg;
 }
 .stepper [aria-disabled="true"] {
-  opacity: 0.35;
+  opacity: var(--dim);
   cursor: default;
 }
 
@@ -705,7 +755,7 @@ button:focus-visible {
   place-items: center;
   margin: 0;
   padding: 24px;
-  color: var(--muted);
   font-size: 14px;
+  opacity: 0.72; /* as quiet as a job's second line */
   text-align: center;
 }

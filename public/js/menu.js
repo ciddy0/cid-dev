@@ -34,6 +34,7 @@ export function menu({ tracks, box, hub, lane }, cam, { onViewing = () => {} } =
   const ms = () => (prefs.motion ? GLIDE_MS : 0);
   let screen = null, // null on the menu itself
     busy = true;
+  nav.classList.remove("waiting"); // there is a map now: the page kept the menu back for it
 
   // Where the menu sits: the spot nearest the hub with room for its buttons and a margin, clear
   // of every line. Failing that, the roomiest spot there is. Worked out once per screen size

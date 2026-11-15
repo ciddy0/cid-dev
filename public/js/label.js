@@ -1,6 +1,7 @@
 // The station label: one floating chip row + name, shared by hover, tap and keyboard focus,
 // with a halo round the station it names.
 import { svg } from "./dom.js";
+import { t } from "./lang.js";
 import { clamp } from "./math.js";
 import { lineColor, lineInk } from "./network.js";
 
@@ -30,11 +31,15 @@ export function stationLabel({ stations, halo, lane }, cam) {
     label.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
   }
 
-  function show(s) {
+  // The label is a live region, which a screen reader reads out as it changes. It is told the
+  // station in words (`said`), not the chips' letters run into the name. Unless `spoken` is
+  // off: a station that has focus has just been read out itself.
+  function show(s, spoken = true) {
     if (s === active) return;
     active = s;
     const chips = document.createElement("span");
     chips.className = "chips";
+    chips.setAttribute("aria-hidden", "true");
     for (const line of s.lines) {
       const chip = document.createElement("span");
       chip.className = "chip";
@@ -46,7 +51,11 @@ export function stationLabel({ stations, halo, lane }, cam) {
     const name = document.createElement("span");
     name.className = "name";
     name.textContent = s.name;
-    label.replaceChildren(chips, name);
+    name.setAttribute("aria-hidden", "true");
+    const said = document.createElement("span");
+    said.className = "sr";
+    if (spoken) said.textContent = t("station", s.name, s.lines.map((line) => line.id));
+    label.replaceChildren(chips, name, said);
     halo.setAttribute("cx", s.x);
     halo.setAttribute("cy", s.y);
     halo.setAttribute("r", s.halo);
@@ -112,7 +121,7 @@ export function stationLabel({ stations, halo, lane }, cam) {
   for (const s of stations) {
     s.g.addEventListener("focus", () => {
       cam.reveal(s);
-      show(s);
+      show(s, false);
     });
     s.g.addEventListener("blur", () => {
       if (active === s) hide();
