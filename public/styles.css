@@ -59,8 +59,12 @@ body {
   height: 100%;
   margin: 0;
 }
-body {
+/* On the root itself, not left for the body to hand up: a phone colours its safe areas (behind
+   the status bar, the toolbar and the home indicator) from here. */
+html {
   background: var(--bg);
+}
+body {
   color: var(--label-ink);
   font-family: var(--font);
   overflow: hidden;

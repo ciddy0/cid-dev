@@ -22,6 +22,10 @@ const apply = () => {
   document.documentElement.classList.toggle("day", !prefs.night);
   document.documentElement.classList.toggle("cb", prefs.colorblind);
   document.documentElement.classList.toggle("bare", !prefs.coast);
+  // The phone's own bars take the page's background, which the classes above have just set.
+  const theme = document.querySelector('meta[name="theme-color"]'),
+    bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  if (theme && bg) theme.content = bg;
 };
 
 export function setPref(key, value) {
