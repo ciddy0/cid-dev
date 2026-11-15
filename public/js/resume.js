@@ -1,4 +1,7 @@
+import { COAST } from "./draw.js";
+import { bendRadii, toD } from "./geometry.js";
 import { onLang, t } from "./lang.js";
+import { lineParts } from "./network.js";
 import { prefs } from "./prefs.js";
 import { chime } from "./sound.js";
 
@@ -20,8 +23,8 @@ const JOBS = [
     from: "2025-09",
     to: "2025-12",
     skills: ["Clean Energy", "Research"],
-    map: "dtla",
-    pin: [47, 43], // Wilshire, just west of the 110
+    map: "metro",
+    pin: [-1, -0.9], // Wilshire, just west of the 110: in the main map's own units
   },
   {
     id: "latech",
@@ -30,8 +33,8 @@ const JOBS = [
     from: "2026-02",
     to: "2026-05",
     skills: ["Node.js", "MongoDB", "React Native"],
-    map: "dtla",
-    pin: [61, 45],
+    map: "metro",
+    pin: [1.1, -0.6],
   },
   {
     id: "csu",
@@ -45,74 +48,6 @@ const JOBS = [
 ];
 
 const MAPS = {
-  dtla: {
-    // Silver Lake, Echo Park's lake and MacArthur Park's.
-    water: ["M36 3h4l1 5-2 3h-3zM44 21h2.5v4H44zM38 49.6h4v2.6h-4z"],
-    rivers: [
-      [
-        [93, 0],
-        [90, 13],
-        [93, 28],
-        [96, 48],
-        [99, 80],
-      ],
-    ],
-    lines: [
-      [
-        "e",
-        [
-          [0, 66],
-          [40, 66],
-          [50.4, 55.6],
-          [50.4, 39.3],
-          [55.3, 34.4],
-          [104, 34.4],
-          [110, 40],
-          [120, 40],
-        ],
-      ],
-      [
-        "d",
-        [
-          [0, 47.6],
-          [52.7, 47.6],
-          [68.7, 31.6],
-          [80, 31.6],
-        ],
-      ],
-      [
-        "b",
-        [
-          [0, 8],
-          [16, 8],
-          [24, 16],
-          [24, 40],
-          [30, 46],
-          [52, 46],
-          [68, 30],
-          [80, 30],
-        ],
-      ],
-      [
-        "a",
-        [
-          [52, 80],
-          [52, 40],
-          [56, 36],
-          [74, 36],
-          [80, 30],
-          [80, 18],
-          [98, 0],
-        ],
-      ],
-    ],
-    // prettier-ignore
-    stops: [
-      [10, 8], [24, 20], [24, 32], [10, 47.6], [31, 46.8], [42, 46.8], [52, 46.8], [58.6, 40.6],
-      [64.6, 34.6], [80, 30.8], [74, 35.2], [80, 22], [88, 10], [104, 34.4], [51.2, 52],
-      [52, 68], [32, 66], [16, 66],
-    ],
-  },
   longBeach: {
     water: [
       "M26 0h2.5v62l2.5 5 7 2h6l2-3 14 1.5 40 2 20-3.5v14H34l-1-8-4-4-3-2z" + // the river and the bay
@@ -216,19 +151,60 @@ const MAPS = {
     ],
   },
 };
+// The main map itself, shrunk to fit a picture: built from data/metro.json once it is loaded
+// (see showMetro), and empty until then. Its pins are in the map's own units, so `at` takes
+// them into the picture's.
+const PIC_W = 120,
+  PIC_H = 80,
+  PIC_PAD = 0.7; // schematic units of clear space round the network
+
+function metroPicture(map) {
+  const { lane, bounds: b } = map.layout;
+  const w = b.maxX - b.minX + 2 * PIC_PAD,
+    h = b.maxY - b.minY + 2 * PIC_PAD;
+  const k = Math.min(PIC_W / w, PIC_H / h);
+  const ox = (PIC_W - w * k) / 2 - (b.minX - PIC_PAD) * k,
+    oy = (PIC_H - h * k) / 2 - (b.minY - PIC_PAD) * k;
+  const at = ([x, y]) => [+(ox + x * k).toFixed(2), +(oy + y * k).toFixed(2)];
+  const tracks = map.lines.flatMap((line) =>
+    lineParts(line).map((part) => ({ line: line.id.toLowerCase(), pts: part.path.map(at) })),
+  );
+  const radii = bendRadii(tracks, 0.5 * k, lane * k);
+  return {
+    at,
+    width: lane * k * 1.6, // thicker than the main map's, so they still read this small
+    water: [toD(COAST.map(at)) + "Z"],
+    rivers: [],
+    paths: tracks.map(({ line, pts }, i) => [line, toD(pts, radii[i])]),
+    lines: [],
+    stops: Object.values(map.stations)
+      .filter((s) => s.transfer)
+      .map((s) => at([s.x, s.y])),
+    r: lane * k * 1.8,
+  };
+}
+let redraw = () => {};
+export function showMetro(map) {
+  MAPS.metro = metroPicture(map);
+  redraw();
+}
+
 // The lines whose colours a job's skills are dotted in, in turn.
 const DOTS = ["a", "b", "c", "d", "e", "g", "k"];
 
 // A job's picture: its map, and a diamond where the job was.
 function picture(job) {
-  const { water, rivers, lines, stops } = MAPS[job.map],
-    [x, y] = job.pin,
+  const pic = MAPS[job.map];
+  if (!pic) return `<svg class="pic" viewBox="0 0 ${PIC_W} ${PIC_H}" aria-hidden="true"></svg>`;
+  const { water, rivers, lines, paths = [], stops, at = (p) => p, width, r = 1.3 } = pic,
+    [x, y] = at(job.pin),
     run = (points) => `points="${points.join(" ")}"`;
-  return `<svg class="pic" viewBox="0 0 120 80" aria-hidden="true">
+  return `<svg class="pic" viewBox="0 0 ${PIC_W} ${PIC_H}" aria-hidden="true"${width ? ` style="--w: ${width.toFixed(2)}"` : ""}>
     ${water.map((d) => `<path class="water" fill-rule="evenodd" d="${d}"/>`).join("")}
     ${rivers.map((river) => `<polyline class="river" ${run(river)}/>`).join("")}
     ${lines.map(([line, points]) => `<polyline style="--c: var(--line-${line})" ${run(points)}/>`).join("")}
-    ${stops.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="1.3"/>`).join("")}
+    ${paths.map(([line, d]) => `<path class="line" style="--c: var(--line-${line})" d="${d}"/>`).join("")}
+    ${stops.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="${+r.toFixed(2)}"/>`).join("")}
     <rect class="pin" x="${x - 1.9}" y="${y - 1.9}" width="3.8" height="3.8" transform="rotate(45 ${x} ${y})"/>
   </svg>`;
 }
@@ -350,5 +326,6 @@ export function resume() {
     pick(at + by);
   });
 
+  redraw = build;
   onLang(build);
 }

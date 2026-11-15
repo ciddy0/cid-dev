@@ -15,7 +15,7 @@ const LAYERS = ["coast", "lines", "trains", "stations", "overlay"]; // bottom to
 // Monica and the K Line to Palos Verdes, along under Long Beach and off to the south-east. The
 // far corners sit well past anything the camera can show. Kept 1.5 units or so clear of the
 // stations nearest the water.
-const COAST = [
+export const COAST = [
   [-200, 2], // Malibu
   [-21, 2],
   [-12, 11], // past Redondo Beach
