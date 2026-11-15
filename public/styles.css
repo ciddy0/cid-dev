@@ -407,7 +407,8 @@ button:focus-visible {
 /* A job leaving the card shuts at once, before the strip has taken it far. */
 .job h2,
 .pic,
-.full {
+.full,
+.skills {
   pointer-events: auto;
   transition: 0.07s;
   transition-property: opacity, visibility, color, text-shadow, background-color;
@@ -500,7 +501,7 @@ button:focus-visible {
 }
 /* The picked job opens as the strip sets it down on the card: its words come up under its
    name. */
-.job.on :is(h2, .pic, .full) {
+.job.on :is(h2, .pic, .full, .skills) {
   transition-duration: 0.13s;
   transition-delay: 0.22s;
 }
@@ -515,22 +516,35 @@ button:focus-visible {
   background: color-mix(in srgb, var(--label-ink) 7%, transparent);
   opacity: 1;
 }
-.job.on .full {
+.job.on :is(.full, .skills) {
   opacity: 1;
   visibility: visible;
 }
+/* A job's skills sit in the row the line runs through, where the line stops at the card's
+   edge, dotted in line colours like the lines that call at a station. Always one row, so every
+   card is spaced the same: as far under its name as over its picture, and the picture over its
+   words. The nudge down makes up for the room under the name's letters. */
 .skills {
+  position: absolute;
+  top: calc(var(--pad) + var(--name));
+  inset-inline: var(--side);
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.2em 0.8em;
-  margin-bottom: 0.5em;
+  align-items: center;
+  gap: 0.8em;
+  height: var(--row);
+  overflow: hidden;
+  translate: 0 0.06em;
+  opacity: 0;
+  visibility: hidden;
 }
 .skill {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
-  font-size: 0.87em;
+  font-size: 0.82em;
   font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 .skill::before {
   content: "";
@@ -538,6 +552,18 @@ button:focus-visible {
   height: 0.75em;
   border-radius: 50%;
   background: var(--c);
+}
+/* On the narrowest screens the skills shrink to stay on their one row, which smaller letters
+   centre without the nudge. */
+@media (max-width: 349px) {
+  .skills {
+    gap: 0.5em;
+    translate: none;
+  }
+  .skill {
+    gap: 0.3em;
+    font-size: 0.69em;
+  }
 }
 .job p {
   margin: 0;

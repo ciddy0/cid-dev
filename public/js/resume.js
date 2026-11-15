@@ -6,7 +6,6 @@ const JOBS = [
   {
     id: "csulb",
     name: "CSULB",
-    org: "California State University, Long Beach",
     role: "Instructor's Student Assistant",
     from: "2025-01",
     to: "2025-12",
@@ -20,7 +19,7 @@ const JOBS = [
     role: "Cleantech Intern",
     from: "2025-09",
     to: "2025-12",
-    skills: [],
+    skills: ["Clean Energy", "Research"],
     map: "dtla",
     pin: [47, 43], // Wilshire, just west of the 110
   },
@@ -30,14 +29,13 @@ const JOBS = [
     role: "Software Engineer Intern",
     from: "2026-02",
     to: "2026-05",
-    skills: ["Node.js", "Express", "MongoDB", "React Native"],
+    skills: ["Node.js", "MongoDB", "React Native"],
     map: "dtla",
     pin: [61, 45],
   },
   {
     id: "csu",
     name: "CSU",
-    org: "California State University, Office of the Chancellor",
     role: "Junior Data Engineer",
     from: "2026-08",
     skills: ["PySpark", "SQL"],
@@ -262,11 +260,10 @@ export function resume() {
       );
       return `<article class="job" data-i="${i}">
         <h2><button>${job.name}</button></h2>
+        <div class="skills">${skills.join("")}</div>
         ${picture(job)}
         <div class="full">
-          ${skills.length ? `<div class="skills">${skills.join("")}</div>` : ""}
           <p class="role">${job.role}</p>
-          ${job.org ? `<p>${job.org}</p>` : ""}
           <p>${when} · ${kind}</p>
           <p class="blurb">${blurb}</p>
           <p class="stat"><b>${stat[0]}</b><span>${stat[1]}</span></p>
