@@ -103,8 +103,9 @@ each train made, how often trains ran late) that isn't built.
   fails is tried again a minute later, under the same name.
 - **How long**: for ever; nothing deletes a file. Going by the first one, a full file is about
   1 MB, so 4 MB a day and 1.5 GB a year, of the 10 GB R2 gives away.
-- **How exact**: with nobody watching, the hub listens to Metro for 8 seconds of each minute, so
-  when a train reached a stop is known to the minute, not the second.
+- **How exact**: with nobody watching, the hub listens to Metro for 8 seconds of each minute (up
+  to 25 when a feed is slow to answer), so when a train reached a stop is known to the minute,
+  not the second.
 
 To look at it, download the files and ask DuckDB (`brew install duckdb`). `data/raw/` isn't
 committed, so they can live there:
@@ -147,6 +148,18 @@ CREATE VIEW archive AS
      SELECT sampled_at, sampled_at - lag(sampled_at) OVER (ORDER BY sampled_at) AS gap
      FROM (SELECT DISTINCT sampled_at FROM archive)
    ) WHERE gap > INTERVAL 90 SECOND ORDER BY 1;
+   ```
+
+   A sample can also be there but lack a whole feed, the trains or the G Line's buses, when one
+   of Metro's two sockets said nothing for 25 seconds (8, in files up to the fix of 16 November
+   2026). `npx wrangler tail` shows both kinds as they happen, as a line starting `record:`
+   with what each feed was doing.
+
+   ```sql
+   SELECT sampled_at,
+     count(*) FILTER (WHERE route_code = '901') AS buses,
+     count(*) FILTER (WHERE route_code <> '901') AS trains
+   FROM archive GROUP BY 1 HAVING buses = 0 OR trains = 0 ORDER BY 1;
    ```
 
 3. **How big is a full file?** `ls -l data/raw/archive/*/`, and put the real figure under _How

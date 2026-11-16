@@ -143,7 +143,7 @@ with a catch-up: the last 60 minutes in 30 s, every car calling at its stations,
 - [ ] Trains whose tracker reports in bursts (G buses, the A's Long Beach loop) still dash a
       couple of hops in the catch-up. Cap the pace and let them run late?
 - [ ] Deploy, then watch the Durable Object's usage: awake while anyone has the map open, and
-      for ~8s of every minute otherwise, for ever
+      for ~8s of every minute otherwise (up to 25s when a feed is slow), for ever
 - [ ] Check Metro's terms of use / rate limits; the API has `/login` + `/token`, so the socket may
       need auth one day — the fallback keeps the page working if it does
 
@@ -154,6 +154,13 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
 
 - [x] `worker/archive.js` and the hub: a sample a minute into SQLite, a file to R2 every six hours
 - [x] Deployed 2026-11-14; the first file came at 00:00 UTC and reads back in DuckDB
+- [x] First look, 2026-11-15, at 30 hours of a weekend: every file there, but 155 minutes of
+      1813 missing and 122 samples without the trains or without the G buses. The alarm gave
+      Metro 8s flat, would drop the minute when a feed had only just answered, and saved it
+      without a feed that hadn't. It now waits up to `HOLD` (25s) for both (`hear()` in
+      `worker/index.js`) and logs a `record:` line when a minute is still lost or partial
+- [ ] After that deploys: are the missing minutes and the feedless samples (query under
+      "Check-up" 2 in `README.md`) rarer in the new files? If not, the `record:` lines say why
 - [ ] Check-up, around 2026-11-18: the six questions under "Check-up" in `README.md`
 - [ ] Timetables: a trip id only matches the `stop_times.txt` of its own day (79 of 79 rail
       trips, against 37 of 79 in a copy four days old). Fetch each day's from the history of
@@ -206,8 +213,9 @@ Build scripts — only when the data is refreshed:
 
 Latent or minor:
 
-- [ ] `snapshot()` in `worker/index.js` compares `now - this.woke >= WARM` right after a
-      `setTimeout(WARM)`: a timer a millisecond early loses that minute's record frame
+- [x] `snapshot()` in `worker/index.js` compares `now - this.woke >= WARM` right after a
+      `setTimeout(WARM)`: a timer a millisecond early loses that minute's record frame. The
+      alarm now looks at the clock each second (`hear()`) instead of trusting one timer
 - [ ] `moved` in `public/js/timetable.js` divides by `hop.arr - hop.dep - DWELL`: a hop of 20s
       or less gives NaN and kills the animation loop (shortest hop today is 60s)
 - [ ] `drone()` in `public/js/trains.js` schedules two `setTargetAtTime` per animation frame.

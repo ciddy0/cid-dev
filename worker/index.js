@@ -10,6 +10,7 @@ const FEEDS = [
 const EVERY = 5;
 const QUIET = 30;
 const WARM = 8;
+const HOLD = 25;
 const ROUND = 1.5;
 const GONE = 300;
 const RETRY = 30;
@@ -84,12 +85,19 @@ export class LiveHub extends DurableObject {
   // up for long enough to hear where everything is.
   async alarm() {
     await this.ctx.storage.setAlarm(Date.now() + RECORD * 1000);
-    if (!this.woke) {
-      this.connect(seconds());
-      await new Promise((done) => setTimeout(done, WARM * 1000));
-    }
-    const now = seconds(),
+    const from = seconds(),
+      now = await this.hear(from),
       snapshot = this.snapshot(now);
+    if (!snapshot || !this.feeds.every(({ since }) => since))
+      console.warn(
+        `record: ${snapshot ? "partial" : "skipped"} after ${Math.round(now - from)}s:`,
+        this.feeds
+          .map(
+            ({ url, socket, since }) =>
+              `${url.split("/ws/")[1]} state=${socket?.readyState ?? "none"} spoke=${since ? Math.round(now - since) + "s ago" : "never"}`,
+          )
+          .join(", "),
+      );
     if (snapshot) {
       const { sql } = this.ctx.storage;
       sql.exec(
@@ -110,6 +118,21 @@ export class LiveHub extends DurableObject {
     }
     if (!this.viewers.size) this.rest();
     await this.flush(now);
+  }
+
+  // Waits for every feed's say: WARM from the dial at least, up to HOLD for a slow one.
+  async hear(from) {
+    for (;;) {
+      const now = seconds();
+      this.connect(now);
+      const said = ({ since }) => since && now - since >= ROUND;
+      if (
+        now - from >= HOLD ||
+        (now - this.woke >= WARM && this.feeds.every(said))
+      )
+        return now;
+      await new Promise((done) => setTimeout(done, 1000));
+    }
   }
 
   async flush(now) {
