@@ -159,9 +159,27 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
       Metro 8s flat, would drop the minute when a feed had only just answered, and saved it
       without a feed that hadn't. It now waits up to `HOLD` (25s) for both (`hear()` in
       `worker/index.js`) and logs a `record:` line when a minute is still lost or partial
-- [ ] After that deploys: are the missing minutes and the feedless samples (query under
-      "Check-up" 2 in `README.md`) rarer in the new files? If not, the `record:` lines say why
-- [ ] Check-up, around 2026-11-18: the six questions under "Check-up" in `README.md`
+- [x] After that deployed (2026-11-16, 07:29 UTC): the missing minutes and the feedless samples
+      are rarer. In the 10.5 hours since, 2 minutes of 629 missing and 5 samples of 627 without
+      a feed (4 the G buses, 1 the trains). Mostly a night and one weekday morning, so look
+      again with a few days more
+- [x] Second look, 2026-11-16, at all 8 files (3.43 MB, none missing, none stray), questions 1
+      to 4 of the check-up. No vehicle twice in a sample, none without a position. What it
+      turned up is the next three
+- [ ] Skipped stops aren't rare: a step of 2 or more is 1% of all steps (0.3% in the first 13
+      minutes), and since the fix still 2.9% of the steps that move: 5% on the 801, 3.6% on the
+      901, under 1.5% on the rest. And 78 steps go backwards. Counting stops off
+      `stop_sequence` alone undercounts those two lines, so fill a skipped stop in, or sample
+      them more often
+- [ ] Old positions: 1 in 10 rows with a trip has a `reported_at` over 2 minutes before its
+      `sampled_at`, 11 minutes at worst. Time a stop by `reported_at`
+- [ ] Vehicles nobody knows: 2026-11-16, 11:31 to 11:40 UTC, every sample has about 1,677
+      vehicles without a trip, most with 10-digit ids seen at no other time (15,362 rows, why
+      `date=2026-11-16/06` is 66% tripless). Find which feed sends them, and whether to keep
+      rows that have no trip and aren't trains
+- [ ] Check-up, around 2026-11-18: questions 5 and 6 under "Check-up" in `README.md` (the
+      timetable in `data/raw/` is of 2026-11-10, too old to match trips against; the cost is
+      in the dashboard), and 1 and 2 again for the days since the fix
 - [ ] Timetables: a trip id only matches the `stop_times.txt` of its own day (79 of 79 rail
       trips, against 37 of 79 in a copy four days old). Fetch each day's from the history of
       gitlab.com/LACMTA/gtfs_rail, or have the hub keep a copy

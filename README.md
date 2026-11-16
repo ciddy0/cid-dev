@@ -101,11 +101,12 @@ each train made, how often trains ran late) that isn't built.
 - **How**: each minute's sample waits in the hub's SQLite (the `samples` table). The first alarm
   after six hours are over writes their file and only then deletes their samples, so a write that
   fails is tried again a minute later, under the same name.
-- **How long**: for ever; nothing deletes a file. Going by the first one, a full file is about
-  1 MB, so 4 MB a day and 1.5 GB a year, of the 10 GB R2 gives away.
+- **How long**: for ever; nothing deletes a file. A full file is 0.3 to 0.7 MB (the first seven),
+  so about 2 MB a day and under 1 GB a year, of the 10 GB R2 gives away.
 - **How exact**: with nobody watching, the hub listens to Metro for 8 seconds of each minute (up
   to 25 when a feed is slow to answer), so when a train reached a stop is known to the minute,
-  not the second.
+  not the second. And the feed repeats itself: 1 in 10 rows with a trip has a `reported_at` over
+  2 minutes before its `sampled_at`, so `reported_at` is the time to go by.
 
 To look at it, download the files and ask DuckDB (`brew install duckdb`). `data/raw/` isn't
 committed, so they can live there:
@@ -168,7 +169,8 @@ CREATE VIEW archive AS
 4. **How do stops show up, a sample a minute?** `step` is how many stops a train moved on
    between two samples: 0 and 1 are easy to count, 2 or more is a stop it was never seen at. In
    the first 13 minutes that was 3 times in 934. If it stays that rare, stops can be counted off
-   `stop_sequence` alone.
+   `stop_sequence` alone. (It didn't: by 16 November 2026 it was 1% of all steps, and 5% of the
+   801's steps that move. See [TO-DO.md](TO-DO.md).)
 
    ```sql
    SELECT step, count(*) AS times FROM (
@@ -198,6 +200,21 @@ CREATE VIEW archive AS
 
 6. **What does it cost?** In the Cloudflare dashboard: the Durable Object's duration and rows
    written, and R2's storage and operations, against the free allowances.
+
+### Before counting
+
+As of 16 November 2026 nothing in the hub has to change first. What the data needs is done in
+the query:
+
+- **Rows without a trip**: leave them out (`WHERE trip_id IS NOT NULL`). They are parked
+  vehicles, and now and then a crowd of vehicles nobody knows.
+- **Skipped stops**: a train that goes from stop 5 to stop 7 made stop 6. Count it, or the 801
+  and the 901 come out about 5% and 4% short.
+- **Times**: go by `reported_at`, not `sampled_at`.
+- **Timetables**: not tried yet. gitlab.com/LACMTA/gtfs_rail has a commit most nights but not
+  all (none on 15 or 16 November), so a day without one has to match the last before it. The
+  bus timetable, for the 901, last changed on 11 October. If trips don't match, the hub has to
+  start keeping its own copy, so try this first.
 
 Then the numbers themselves: see [TO-DO.md](TO-DO.md).
 
