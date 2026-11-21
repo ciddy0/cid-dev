@@ -342,6 +342,35 @@ button:focus-visible {
 #back:active {
   transform: scale(0.95);
 }
+/* The map's own button, to the stats: a block like the menu's words, in the corner across. */
+#over {
+  position: fixed;
+  right: calc(var(--back-gap) + 4px + env(safe-area-inset-right));
+  bottom: calc(var(--back-gap) + 4px + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: calc(var(--back) - 8px);
+  height: calc(var(--back) - 8px);
+  background: var(--line-a);
+  color: var(--dot);
+  font-size: 26px;
+  filter: drop-shadow(0 0 3px var(--bg));
+  transition: transform var(--quick);
+}
+#over::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+@media (hover: hover) {
+  #over:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 3px var(--bg)) brightness(1.12);
+  }
+}
+#over:active {
+  transform: scale(0.95);
+}
 
 /* A screen starts clear of the back arrow. */
 .screen {
@@ -677,6 +706,106 @@ button:focus-visible {
 }
 .docs b {
   font-weight: 700;
+}
+/* The stats: a day's trains, a column an hour and a block a line, up where the map is empty. */
+.stats {
+  display: grid;
+  justify-items: center;
+  gap: 0.45em;
+  width: min(100%, 26em);
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  --ctl: 1.7em;
+  --row-pad: 0.15em;
+  --row-gap: 0.35em;
+  font-size: clamp(16px, 2.6vmin, 20px);
+  line-height: 1.35;
+  text-shadow: var(--glow);
+  pointer-events: auto;
+}
+.stats p {
+  margin: 0;
+}
+.stats.empty > :not(.note) {
+  display: none;
+}
+.stats .stepper {
+  font-size: 1.25em;
+}
+.stats .stepper output {
+  min-width: 8.5em;
+}
+.stats .stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+.stats .readout,
+.stats .caption,
+.stats .note,
+.axis {
+  font-size: 0.85em;
+  opacity: var(--quiet);
+}
+.stats .readout,
+.stats .caption {
+  margin-top: 0.7em;
+}
+.chart {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  width: 100%;
+  height: 9em;
+  padding-top: 14px;
+  border-bottom: 1px solid var(--muted);
+}
+.hour {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  transition: opacity var(--quick);
+}
+.hour i {
+  flex: none;
+  width: min(100% - 2px, 24px);
+}
+.hour.dim {
+  opacity: var(--dim);
+}
+.axis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+}
+.lines {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3em 1.6em;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lines li {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.lines b {
+  margin-left: auto;
+}
+.lines .chip {
+  display: grid;
+  place-items: center;
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 50%;
+  font-size: 0.75em;
+  font-weight: 700;
+  text-shadow: none;
 }
 /* The settings: names down the left, each one's switch or stepper to its right, straight on
    the map. The two halves meet down the middle of the screen, so the controls stay put however

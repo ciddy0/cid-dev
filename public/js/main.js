@@ -7,6 +7,7 @@ import { loadMap } from "./network.js";
 import { resume, showMetro } from "./resume.js";
 import { settings } from "./settings.js";
 import { arrivals } from "./sound.js";
+import { stats } from "./stats.js";
 import { trains } from "./trains.js";
 
 settings();
@@ -14,6 +15,7 @@ resume();
 try {
   const map = await loadMap();
   showMetro(map);
+  stats(map);
   const drawn = draw(map);
   const cam = camera(drawn);
   stationLabel(drawn, cam);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { adapter } from "../worker/adapt.js";
+import { adapter, spot, unique } from "../worker/adapt.js";
 
 // Three stations a kilometre or so apart heading north, and one only called at on the way back.
 const map = {
@@ -77,4 +77,41 @@ test("vehicles out of service, off the map or malformed are nobody", () => {
   assert.equal(adapt(vehicle("nowhere", "STOPPED_AT", 0, 1)), null);
   assert.equal(adapt({}), null);
   assert.equal(adapt({ id: "1", route_code: "801" }), null);
+});
+
+// A train as the hub keeps it: `seq` 1 is waiting to start, `km` is how far north it is.
+const train = (id, seen, stopId, seq, km, directionId = 0) => {
+  const message = vehicle(stopId, "IN_TRANSIT_TO", directionId, km);
+  Object.assign(message, { id });
+  message.vehicle.currentStopSequence = seq;
+  return { id, seen, spot: spot(message) };
+};
+const kept = (...trains) => unique(trains).map(({ id }) => id);
+
+test("of two trains with a car in common, the one under way is kept", () => {
+  const yard = train("100-125-129", 20, "a", 1, 0),
+    running = train("116-125", 10, "c", 3, 1.5);
+  assert.deepEqual(kept(yard, running), ["116-125"]);
+  assert.deepEqual(kept(running, yard), ["116-125"]);
+});
+
+test("and of two both under way, the one heard from last", () => {
+  const old = train("116-125", 10, "b", 2, 0.5),
+    fresh = train("125-130", 20, "c", 3, 1.5);
+  assert.deepEqual(kept(old, fresh), ["125-130"]);
+});
+
+test("two ids in one place headed for the same stop are one train", () => {
+  const one = train("116-125", 10, "c", 3, 1.5),
+    twin = train("164", 20, "c", 3, 1.55);
+  assert.deepEqual(kept(one, twin), ["164"]);
+  assert.deepEqual(kept(one, train("164", 20, "c", 3, 1.9)).length, 2);
+  assert.deepEqual(kept(one, train("164", 20, "c", 3, 1.55, 1)).length, 2);
+  assert.deepEqual(kept(train("9001", 10, "c", 3, 1.5), twin).length, 2); // two buses
+});
+
+test("two trains waiting at the same terminal are two trains", () => {
+  const one = train("116-125", 10, "a", 1, 0),
+    other = train("140-141", 20, "a", 1, 0.02);
+  assert.deepEqual(kept(one, other), ["116-125", "140-141"]);
 });

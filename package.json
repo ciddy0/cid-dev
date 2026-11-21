@@ -10,6 +10,7 @@
     "deploy": "npx wrangler deploy",
     "fetch": "node scripts/fetch-gtfs.mjs",
     "build": "node scripts/build-map.mjs",
+    "stats": "node scripts/build-stats.mjs",
     "test": "node --test"
   },
   "dependencies": {

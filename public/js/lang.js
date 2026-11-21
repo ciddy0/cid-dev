@@ -8,6 +8,7 @@ const TEXT = {
     view: "Map",
     resume: "Resume",
     docs: "About",
+    stats: "Stats",
     settings: "Settings",
     jobs: {
       csulb: {
@@ -43,6 +44,7 @@ const TEXT = {
       <p><b>Drag</b> to move, <b>pinch or scroll</b> to zoom.</p>
       <p><b>Tap or hover</b> a station for its name and lines.</p>
       <p><b>Tab</b> steps through the stations.</p>
+      <p>The <b>graph</b> in the corner of the map shows the day's numbers.</p>
       <p>The arrow up top (or <b>Esc</b>) brings you back.</p>
       <h2>The Map</h2>
       <p>The lines and stations come from Metro's GTFS feed.</p>
@@ -67,6 +69,13 @@ const TEXT = {
       <p>Data from LA Metro</p>
       <p>Colorblind palette by Okabe &amp; Ito</p>
       <p>Inspired by Beck, Vignelli and Mini Metro</p>`,
+    statsMost: (hour) => `trains out at ${hour}, the busiest hour`,
+    statsChart: "Trains out, hour by hour",
+    statsHour: (hour, n) => `${hour}: ${n} ${n === 1 ? "train" : "trains"} out`,
+    statsAt: (hour) => `At ${hour}, by line`,
+    statsLine: (id) => `${id} Line`,
+    statsNote: (share) => `Recorded ${share}% of this day.`,
+    statsNone: "No numbers yet.",
     lang: "Language",
     night: "Night Mode",
     colorblind: "Colorblind Mode",
@@ -92,6 +101,7 @@ const TEXT = {
     view: "Mapa",
     resume: "Currículum",
     docs: "Acerca de",
+    stats: "Estadísticas",
     settings: "Configuración",
     jobs: {
       csulb: {
@@ -131,6 +141,7 @@ const TEXT = {
       <p><b>Toca una estación o pasa el cursor</b> sobre ella para ver su nombre y sus
         líneas.</p>
       <p><b>Tab</b> recorre las estaciones.</p>
+      <p>La <b>gráfica</b> en la esquina del mapa muestra los números del día.</p>
       <p>La flecha de arriba (o <b>Esc</b>) te regresa.</p>
       <h2>El mapa</h2>
       <p>Las líneas y las estaciones salen del feed GTFS de Metro.</p>
@@ -156,6 +167,14 @@ const TEXT = {
       <p>Datos de LA Metro</p>
       <p>Paleta para daltónicos de Okabe e Ito</p>
       <p>Inspirado en Beck, Vignelli y Mini Metro</p>`,
+    statsMost: (hour) => `trenes en servicio en la hora pico, ${hour}`,
+    statsChart: "Trenes en servicio, hora por hora",
+    statsHour: (hour, n) =>
+      `${hour}: ${n} ${n === 1 ? "tren" : "trenes"} en servicio`,
+    statsAt: (hour) => `${hour}, por línea`,
+    statsLine: (id) => `Línea ${id}`,
+    statsNote: (share) => `Se registró el ${share}% de este día.`,
+    statsNone: "Todavía no hay números.",
     lang: "Idioma",
     night: "Modo nocturno",
     colorblind: "Modo daltónico",

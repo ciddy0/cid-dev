@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import map from "../public/data/metro.json";
-import { adapter } from "./adapt.js";
+import { adapter, spot, unique } from "./adapt.js";
 import { SPAN, key, parquet, sample, windowOf } from "./archive.js";
 
 const FEEDS = [
@@ -205,7 +205,12 @@ export class LiveHub extends DurableObject {
         feed.since = this.heard;
         setTimeout(() => this.timer && this.tick(), ROUND * 1000 + SLACK);
       }
-      if (train) this.trains.set(train.id, { ...train, heard: this.heard });
+      if (train)
+        this.trains.set(train.id, {
+          ...train,
+          heard: this.heard,
+          spot: spot(message),
+        });
       else this.trains.delete(message.id);
       if (row) this.seen.set(row.vehicle_id, { ...row, heard: this.heard });
     });
@@ -221,7 +226,9 @@ export class LiveHub extends DurableObject {
       since ? now - since >= ROUND : now - this.woke >= WARM;
     if (now - this.heard > QUIET || !this.feeds.every(said)) return null;
     return JSON.stringify(
-      Array.from(this.trains.values(), ({ seen, heard, ...train }) => train),
+      unique([...this.trains.values()]).map(
+        ({ seen, heard, spot, ...train }) => train,
+      ),
     );
   }
 

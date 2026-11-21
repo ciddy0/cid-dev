@@ -5,6 +5,7 @@
 const KM_PER_DEG = 111.32;
 const UNDER_WAY = [0.05, 0.95];
 const SOMEWHERE = 0.5;
+const NEAR = 0.15;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
 
 // A line's stations in the order each direction calls at them: direction 0 end to end, and
@@ -59,4 +60,47 @@ export function adapter(map) {
       ).toFixed(3),
     };
   };
+}
+
+export function spot({ id, route_code, vehicle = {} } = {}) {
+  const { trip = {}, position = {} } = vehicle;
+  return {
+    cars: String(id).includes("-") ? String(id).split("-") : [],
+    bound: `${route_code} ${trip.directionId} ${vehicle.stopId}`,
+    waiting: vehicle.currentStopSequence === 1,
+    lat: position.latitude,
+    lon: position.longitude,
+  };
+}
+
+// The feed can name one train twice. Of two with a car in common, or within NEAR km and headed
+// for the same stop, keeps the one under way, then the one heard from last. Two ids that list
+// no cars (the G Line's buses) are never one.
+export function unique(trains) {
+  const km = (a, b) =>
+    Math.hypot(
+      a.lat - b.lat,
+      (a.lon - b.lon) * Math.cos((a.lat * Math.PI) / 180),
+    ) * KM_PER_DEG;
+  const same = (a, b) =>
+    a.cars.some((car) => b.cars.includes(car)) ||
+    (a.bound === b.bound &&
+      a.cars.length + b.cars.length > 0 &&
+      !(a.waiting && b.waiting) &&
+      km(a, b) < NEAR);
+  const beats = (a, b) =>
+    a.spot.waiting !== b.spot.waiting
+      ? b.spot.waiting
+      : a.seen !== b.seen
+        ? a.seen > b.seen
+        : a.id > b.id;
+  return trains.filter(
+    (train) =>
+      !trains.some(
+        (other) =>
+          other !== train &&
+          same(train.spot, other.spot) &&
+          beats(other, train),
+      ),
+  );
 }

@@ -186,7 +186,21 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
 - [ ] The numbers: a weekly GitHub Action runs DuckDB over the week's files and the timetable
       and writes `stats/latest.json` to R2: stops made per train and per line, arrivals 5+
       minutes late, and how much of the week is missing
-- [ ] The page: `public/stats.html`, reading that JSON through a route of the Worker
+- [x] The page, a first one (2026-11-16): the graph in the corner of the map opens a stats
+      screen (`public/js/stats.js`) with the trains out each hour of a day, from
+      `public/data/stats.json`, which `npm run stats` builds from the downloaded files
+- [ ] Build `stats.json` without me: the weekly Action above, or a route of the Worker
+- [x] A train named twice (2026-11-16): a set of cars that has been split up goes on reporting
+      from the yard under its old id, and a train on the line can turn up under a second id.
+      `unique()` in `worker/adapt.js` keeps one of two trains with a car in common, or within
+      150 m of each other and headed for the same stop: the hub's snapshots and
+      `build-stats.mjs` both go by it. It drops 1 row in 4 on the 801 and under 4% elsewhere,
+      and a Sunday on the 801 goes from 30 to 52 trains an hour to 27 to 31
+- [x] Runs (2026-11-16): on the 801 a `trip_id` is shared by several runs at once (1,029 ids,
+      1,849 runs in two days), told apart by `start_time`. The step query in `README.md`
+      goes by (`start_date`, `trip_id`, `start_time`) now
+- [ ] Before measuring lateness on the 801: how its `stop_times.txt` and `frequencies.txt` give
+      a run its times, since a trip id alone doesn't
 - [ ] `wrangler.jsonc` binds the bucket twice (`cid_dev_metro`, which
       `wrangler r2 bucket create` added); drop the second
 

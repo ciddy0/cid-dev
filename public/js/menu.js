@@ -7,6 +7,7 @@ const SCREENS = {
   view: [1, 0],
   resume: [1, -1],
   docs: [1, 1],
+  stats: [0, -1],
   settings: [0, 1],
 };
 
@@ -33,11 +34,13 @@ export function menu(
 ) {
   const nav = document.getElementById("menu"),
     back = document.getElementById("back"),
+    over = document.getElementById("over"),
     main = svg.parentElement;
   const panel = (id) => document.getElementById(id);
   const item = (id) => nav.querySelector(`[data-go="${id}"]`);
   const ms = () => (prefs.motion ? GLIDE_MS : 0);
   let screen = null,
+    held,
     busy = true;
   nav.classList.remove("waiting");
 
@@ -95,9 +98,25 @@ export function menu(
     const k = LINE_VIEW / lane;
     return cam.fit < k ? cam.hold({ x: hub.x, y: hub.y, k }) : cam.whole();
   };
+  const above = () => ({
+    ...held,
+    y: box.y - svg.getBoundingClientRect().height / held.k / 2,
+  });
   const spot = (id) =>
-    id === "view" ? open() : beside(...(SCREENS[id] ?? []));
+    id === "view"
+      ? open()
+      : id === "stats"
+        ? above()
+        : beside(...(SCREENS[id] ?? []));
   cam.rest = () => spot(screen);
+  const here = () => {
+    const [x, y, w, h] = svg.getAttribute("viewBox").split(" ").map(Number);
+    return {
+      x: x + w / 2,
+      y: y + h / 2,
+      k: svg.getBoundingClientRect().width / w,
+    };
+  };
 
   function place(id, p) {
     const [dx, dy] = SCREENS[id];
@@ -106,7 +125,15 @@ export function menu(
     shift(nav, -p);
     if (panel(id)) shift(panel(id), 1 - p);
     back.style.opacity = p;
+    if (id === "view") over.style.opacity = p;
   }
+  const point = (id) => {
+    const [dx, dy] = SCREENS[id];
+    back.style.setProperty(
+      "--turn",
+      `${(Math.atan2(dy, dx) * 180) / Math.PI + 180}deg`,
+    );
+  };
 
   function viewing(on) {
     svg.classList.toggle("viewing", on);
@@ -116,12 +143,9 @@ export function menu(
   function go(id) {
     if (busy) return;
     busy = true;
-    const [dx, dy] = SCREENS[id];
-    back.style.setProperty(
-      "--turn",
-      `${(Math.atan2(dy, dx) * 180) / Math.PI + 180}deg`,
-    );
+    point(id);
     back.hidden = false;
+    over.hidden = id !== "view";
     if (panel(id)) panel(id).hidden = false;
     place(id, 0);
     nav.classList.add("choosing");
@@ -148,7 +172,42 @@ export function menu(
     setTimeout(leave, prefs.motion ? SWELL_MS : 0);
   }
 
+  // From the map to the stats and back. The stats are a place too, straight up from the view and
+  // clear of the whole map, so they come into view with it. The map carries on out of sight.
+  function aside(on) {
+    if (busy) return;
+    busy = true;
+    if (on) held = here();
+    const stats = panel("stats"),
+      rise = (held.y - above().y) * held.k;
+    const step = (p) => {
+      stats.style.transform = `translateY(${(p - 1) * rise}px)`;
+      over.style.opacity = 1 - p;
+    };
+    cam.roam = false;
+    main.inert = true;
+    stats.hidden = over.hidden = false;
+    step(on ? 0 : 1);
+    point(on ? "stats" : "view");
+    chime(...(on ? CHIME_GO : CHIME_HOME));
+    cam.glide(
+      on ? spot("stats") : held,
+      ms(),
+      (e) => step(on ? e : 1 - e),
+      () => {
+        screen = on ? "stats" : "view";
+        busy = false;
+        stats.hidden = !on;
+        over.hidden = on;
+        cam.roam = !on;
+        main.inert = on;
+        (on ? back : over).focus({ preventScroll: true });
+      },
+    );
+  }
+
   function home() {
+    if (screen === "stats") return aside(false);
     if (busy || !screen) return;
     busy = true;
     const id = screen;
@@ -164,7 +223,7 @@ export function menu(
       (e) => place(id, 1 - e),
       () => {
         busy = false;
-        back.hidden = true;
+        back.hidden = over.hidden = true;
         if (panel(id)) panel(id).hidden = true;
         item(id).focus({ preventScroll: true });
       },
@@ -176,6 +235,7 @@ export function menu(
     if (id) go(id);
   });
   back.addEventListener("click", home);
+  over.addEventListener("click", () => aside(true));
   addEventListener("keydown", (e) => {
     if (e.key === "Escape") home();
   });

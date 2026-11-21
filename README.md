@@ -40,6 +40,7 @@ output is committed.
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `fetch-gtfs.mjs`                              | command: downloads the rail feed, and the G Line's rows of the bus feed                                  |
 | `build-map.mjs`                               | command: reads the tables, builds, lays out, writes `metro.json`, reports                                |
+| `build-stats.mjs`                             | command: the archive files in `data/raw/archive/` → `stats.json` (needs `duckdb`)                        |
 | `lib/network.mjs`                             | GTFS tables → lines and stations, geographic                                                             |
 | `lib/schematize.mjs`                          | geographic → schematic: the layout, steered by `data/overrides.json` (documented at the top of the file) |
 | `lib/csv.mjs`, `lib/vec.mjs`, `lib/paths.mjs` | CSV parser, vector maths, where files live                                                               |
@@ -59,9 +60,10 @@ them up, roughly in this order:
 | `trains.js`                        | puts a car wherever a feed says a train is, riding the tracks (`rail.js`)                                                                                                                                          |
 | `live.js`                          | the live feed: the last hour run through in half a minute as the view opens, every car stopping at its stations to let passengers off and on, then the socket to `/live`, cars eased from one snapshot to the next |
 | `timetable.js`                     | the fallback feed: where every train is, worked out from the timetable                                                                                                                                             |
-| `menu.js`                          | the menu and the screens it flies to (map, resume, about, settings); starts and stops the trains                                                                                                                   |
+| `menu.js`                          | the menu and the screens it flies to (map, resume, about, settings), and from the map to the stats and back; starts and stops the trains                                                                           |
 | `intro.js`                         | the lines drawing themselves in as the page opens                                                                                                                                                                  |
 | `resume.js`                        | the resume screen: the jobs as stops along a line, the picked one a card on it with a little map of where the job was                                                                                              |
+| `stats.js`                         | the stats screen: how many trains were out on a day, hour by hour and line by line, from `stats.json`                                                                                                              |
 | `settings.js`, `prefs.js`          | the settings (language, night mode, colorblind mode, coastline, motion, sound, volume), stored in `localStorage`                                                                                                   |
 | `lang.js`                          | every word on the page, in English and Spanish                                                                                                                                                                     |
 | `sound.js`                         | the synthesized piano: a note as a train arrives on screen, menu figures, the hum                                                                                                                                  |
@@ -76,7 +78,7 @@ the page, which is what lets `test/` run them under Node. Keep them that way.
 |              |                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `index.js`   | the `/live` websocket, `/live/history`, and the hub: one Durable Object that listens to LA Metro's vehicle positions while anyone is watching and sends every visitor a snapshot each few seconds. Once a minute, watched or not, it stores a snapshot, and keeps 65 minutes of them. The same minute it notes what the feed said about every vehicle, and every six hours writes those notes to R2 as one file |
-| `adapt.js`   | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json`                                                                                                                                                                                                                                                                                                                        |
+| `adapt.js`   | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json`; and `unique()`, which of two trains the feed names twice to keep                                                                                                                                                                                                                                                      |
 | `archive.js` | the archive, less the bucket: one vehicle of the feed → a flat row, which six hours a time falls in and the file they are kept as, rows → Parquet                                                                                                                                                                                                                                                               |
 
 The page shows the timetable when there is neither a record nor a snapshot to go on, and again
@@ -175,7 +177,7 @@ CREATE VIEW archive AS
    ```sql
    SELECT step, count(*) AS times FROM (
      SELECT stop_sequence - lag(stop_sequence) OVER (
-       PARTITION BY start_date, trip_id, vehicle_id ORDER BY sampled_at) AS step
+       PARTITION BY start_date, trip_id, start_time, vehicle_id ORDER BY sampled_at) AS step
      FROM archive WHERE trip_id IS NOT NULL
    ) WHERE step IS NOT NULL GROUP BY 1 ORDER BY 1;
    ```
@@ -211,12 +213,33 @@ the query:
 - **Skipped stops**: a train that goes from stop 5 to stop 7 made stop 6. Count it, or the 801
   and the 901 come out about 5% and 4% short.
 - **Times**: go by `reported_at`, not `sampled_at`.
+- **Runs**: on the 801 one `trip_id` is several trains at once, a `start_time` each. A run is
+  (`start_date`, `trip_id`, `start_time`).
+- **A train named twice**: the feed can give one train two ids, mostly on the 801 (1 row in 4
+  there). `unique()` in `worker/adapt.js` says which of two to keep, and the map and
+  `scripts/build-stats.mjs` both go by it. The archive keeps every row, so anything else that
+  counts trains has to do the same.
 - **Timetables**: not tried yet. gitlab.com/LACMTA/gtfs_rail has a commit most nights but not
   all (none on 15 or 16 November), so a day without one has to match the last before it. The
   bus timetable, for the 901, last changed on 11 October. If trips don't match, the hub has to
   start keeping its own copy, so try this first.
 
-Then the numbers themselves: see [TO-DO.md](TO-DO.md).
+### The stats screen
+
+The graph in the corner of the map opens it, and the arrow goes back to the map. For a day in
+Los Angeles: how many trains were out in each hour, a block a line, and the busiest hour up
+top. An hour's number is the median of its minutes, line by line, so the blocks, the headline
+and the lines' numbers all add up. A train counts if it has a trip and reported in the last 5
+minutes, and a train the feed names twice counts once, as on the map. The numbers are
+`public/data/stats.json`, built by hand for now: download the new files (the loop above), then
+
+```sh
+npm run stats
+```
+
+and commit the file. Nothing about trips, stops or lateness is on it yet.
+
+Then the rest of the numbers: see [TO-DO.md](TO-DO.md).
 
 ## Common changes
 
