@@ -188,10 +188,20 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
 - [x] The page, a first one (2026-11-16): the graph in the corner of the map opens a stats
       screen (`public/js/stats.js`) with the trains out each hour of a day, from
       `public/data/stats.json`, which `npm run stats` builds from the downloaded files
-- [ ] Build `stats.json` without me: the archive as Iceberg tables, Basin SQL once a day
-      (the plan of 2026-11-21). Step 1 done 2026-11-21: `worker/stats.js` holds the SQL for
-      one LA day, trains out and late arrivals, and `npm run stats` runs it in DuckDB. It gives
-      the old `stats.json` exactly for 14 to 16 November. Next: the spike on scratch resources
+- [x] Build `stats.json` without me, the code (2026-11-21): the SQL in `worker/stats.js` gives
+      the old `stats.json` exactly, in DuckDB and in Basin SQL (the spike: see "The lake" in
+      `README.md`). The hub streams from an `outbox`, and `worker/lake.js` loads timetables and
+      counts days on two crons
+- [ ] The lake in production: create `cid-dev-lake` and its streams, sinks and pipelines (names
+      and schemas in `scripts/lake/`), add the two `pipelines` bindings and the crons to
+      `wrangler.jsonc`, set `BASIN_TOKEN`, deploy, backfill with `scripts/lake-load.mjs` up to the
+      first streamed sample, load the bus timetable of 2026-10-11, seed `stats/latest.json`, and
+      check with `scripts/lake-check.mjs`
+- [ ] After a few weeks of `lake-check` matching: drop the Parquet flush (`flush()`, `samples`,
+      `hyparquet-writer`) and `public/data/stats.json`
+- [ ] Delete the bucket `cid-dev-spike` once its lifecycle rule has emptied it (from 2026-11-22)
+- [ ] The spike didn't answer: the largest `--roll-interval`, where a dropped record shows up,
+      and whether Basin Catalog's compaction runs
 - [ ] `pick()` in `worker/stats.js` falls back to an older timetable when a day's isn't there,
       and trips it doesn't list just drop out. The daily job should skip such a day instead
 - [ ] Show late arrivals on the stats screen (`late` in `stats.json`): the 801 "not measured",

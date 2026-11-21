@@ -58,3 +58,11 @@ export function parquet(rows) {
     })),
   });
 }
+
+const stamp = (at) =>
+  at == null ? null : new Date(at * 1000).toISOString().slice(0, 19) + "Z";
+export const lakeRow = (at, row) => ({
+  ...row,
+  sampled_at: stamp(at),
+  reported_at: stamp(row.reported_at),
+});

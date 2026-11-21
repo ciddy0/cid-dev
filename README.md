@@ -41,6 +41,7 @@ output is committed.
 | `fetch-gtfs.mjs`                              | command: downloads the rail feed, and the G Line's rows of the bus feed                                  |
 | `build-map.mjs`                               | command: reads the tables, builds, lays out, writes `metro.json`, reports                                |
 | `build-stats.mjs`                             | command: runs the SQL of `worker/stats.js` over `data/raw/archive/` in DuckDB → `stats.json`             |
+| `lake-load.mjs`, `lake-check.mjs`             | commands: post history to a lake stream; count the lake's rows a day against the archive's               |
 | `lib/network.mjs`                             | GTFS tables → lines and stations, geographic                                                             |
 | `lib/schematize.mjs`                          | geographic → schematic: the layout, steered by `data/overrides.json` (documented at the top of the file) |
 | `lib/csv.mjs`, `lib/vec.mjs`, `lib/paths.mjs` | CSV parser, vector maths, where files live                                                               |
@@ -81,18 +82,18 @@ the page, which is what lets `test/` run them under Node. Keep them that way.
 | `adapt.js`   | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json`; and `unique()`, which of two trains the feed names twice to keep                                                                                                                                                                                                                                                      |
 | `archive.js` | the archive, less the bucket: one vehicle of the feed → a flat row, which six hours a time falls in and the file they are kept as, rows → Parquet                                                                                                                                                                                                                                                               |
 | `stats.js`   | the stats screen's SQL for one LA day, in what Basin SQL runs: trains out an hour, and late arrivals against the day's timetable                                                                                                                                                                                                                                                                                |
+| `lake.js`    | the two daily jobs (see "The lake"): load Metro's new timetables into the lake at 10:00 UTC, count the days not yet counted into `stats/latest.json` at 12:00 UTC                                                                                                                                                                                                                                               |
 
 The page shows the timetable when there is neither a record nor a snapshot to go on, and again
 whenever the snapshots stop. The record starts with the first visit after a deploy, so the very
 first one gets no catch-up.
 
-`adapt.js`, `archive.js` and `stats.js` never touch the network or the bucket, so `test/` runs them too.
+`adapt.js`, `archive.js` and `stats.js`, and `lake.js` but for its last three functions, never touch the network or the bucket, so `test/` runs them too.
 
 ## The archive
 
 Since 14 November 2026 the hub keeps everything Metro's feed says: every vehicle, once a minute,
-round the clock. Nothing reads it yet. It is there for a weekly page of numbers (how many stops
-each train made, how often trains ran late) that isn't built.
+round the clock. The stats screen counts it, by way of the lake below.
 
 - **Where**: the R2 bucket `cid-dev-metro`, bound as `ARCHIVE` in `wrangler.jsonc`. One file for
   every six hours by UTC: `vehicle_positions/date=2026-11-14/18.parquet` is 18:00 to 23:59. The
@@ -226,14 +227,43 @@ the query:
   are when the trains really left. For late arrivals, put each `stop_times.txt` in
   `data/raw/timetables/rail/<date published>/` (or `bus/`).
 
+### The lake
+
+The archive again, as Iceberg tables in the R2 bucket `cid-dev-lake` (Basin Catalog), so that
+Basin SQL can count it. Each minute, after the sample, the hub sends it to the stream bound as
+`LAKE` from its `outbox` table, and only deletes it once `send()` has come back. A send that fails
+waits for the next minute; past a day of them the oldest are dropped, since the Parquet files
+still have them. A pipeline writes the stream to `metro.vehicle_positions` within a few minutes.
+
+- `metro.stop_times`: every rail timetable since 13 November, and the G Line's from the bus feed:
+  `network` (`rail` or `bus`), `feed` (the LA day it was published), `trip_id`, `stop_sequence`,
+  `arrival` (seconds from noon less 12 hours). The 10:00 job loads each new rail version from
+  GitLab's history and writes what it has to `timetables/loaded.json` in `cid-dev-metro`. The bus
+  feed is too big for a Worker: when it changes, the job logs a warning, and it's loaded by hand
+  with `scripts/lake-load.mjs` (then add it to `bus` in `loaded.json`).
+- `stats/latest.json` in `cid-dev-metro`: the 12:00 job counts every LA day after the last one in
+  it, up to yesterday, and stops at the first day whose timetables aren't in yet. A day once
+  counted is never counted again; to recount, delete it from the file. The job does nothing
+  until the file exists, so put `{"days":[]}` there only once the backfill checks out. `/stats`
+  serves the file (`public/data/stats.json` until it exists).
+- The schemas are `scripts/lake/*.schema.json`. A stream's schema can't change, and a record that
+  doesn't fit it is accepted and then dropped without an error, so `scripts/lake-check.mjs`
+  compares the rows a day against the archive's.
+
+What the spike of 21 November showed: a Durable Object can `send()`; RFC 3339 times arrive as
+timestamps; rows are queryable about 2 minutes after a send (60 s roll); a bad record is dropped on
+its own, its batch kept; the table gains an `__ingest_ts` column; both queries give in Basin SQL
+exactly what they give in DuckDB, scanning 15 MB (trains) and 2 MB (late) a day.
+
 ### The stats screen
 
 The graph in the corner of the map opens it, and the arrow goes back to the map. For a day in
 Los Angeles: how many trains were out in each hour, a block a line, and the busiest hour up
 top. An hour's number is the median of its minutes, line by line, so the blocks, the headline
 and the lines' numbers all add up. A train counts if it has a trip and reported in the last 5
-minutes, and a train the feed names twice counts once, as on the map. The numbers are
-`public/data/stats.json`, built by hand for now: download the new files (the loop above), then
+minutes, and a train the feed names twice counts once, as on the map. The numbers come
+from `/stats` (see "The lake"). `public/data/stats.json` is the same numbers built by hand from
+the downloaded files, which is how to check the SQL after changing it:
 
 ```sh
 npm run stats

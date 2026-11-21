@@ -6,6 +6,10 @@
     "directory": "./public",
     "binding": "ASSETS"
   },
+  "vars": {
+    "ACCOUNT_ID": "1633cee34f84cbf21600ae9b7fd7f819",
+    "LAKE_BUCKET": "cid-dev-lake"
+  },
   "durable_objects": {
     "bindings": [
       {
@@ -25,6 +29,13 @@
       "remote": true
     }
   ],
+  "pipelines": [
+    { "binding": "LAKE", "stream": "04ba059968654b17a23a725a22eba33c" },
+    { "binding": "TIMETABLES", "stream": "36e8b8fa919c449e830297405fbb9173" }
+  ],
+  "triggers": {
+    "crons": ["0 10 * * *", "0 12 * * *"]
+  },
   "migrations": [
     {
       "tag": "v1",

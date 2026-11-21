@@ -1,7 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
 import map from "../public/data/metro.json";
 import { adapter, spot, unique } from "./adapt.js";
-import { SPAN, key, parquet, sample, windowOf } from "./archive.js";
+import { STATS, countDays, loadTimetables } from "./lake.js";
+import { SPAN, key, lakeRow, parquet, sample, windowOf } from "./archive.js";
 
 const FEEDS = [
   "wss://api.metro.net/ws/LACMTA_Rail/vehicle_positions",
@@ -19,17 +20,43 @@ const KEEP = 65 * 60;
 const RECENT = 180;
 const CACHE = 20;
 const SLACK = 100;
+const SEND = 3e6;
+const OUTBOX = 24 * 60;
+const STATS_CACHE = 3600;
+const LOAD_AT = "0 10 * * *";
+const COUNT_AT = "0 12 * * *";
+const ROUTES = map.lines.map((line) => line.route).sort();
 
 const seconds = () => Date.now() / 1000;
 
 export default {
-  fetch(request, env) {
+  async fetch(request, env) {
     const { pathname } = new URL(request.url);
+    if (pathname === "/stats") return stats(request, env);
     if (pathname !== "/live" && pathname !== "/live/history")
       return env.ASSETS.fetch(request);
     return env.LIVE.get(env.LIVE.idFromName("hub")).fetch(request);
   },
+
+  async scheduled(event, env) {
+    if (!env.TIMETABLES || !env.BASIN_TOKEN)
+      return console.warn("lake: no TIMETABLES binding or BASIN_TOKEN");
+    if (event.cron === LOAD_AT) await loadTimetables(env, event.scheduledTime);
+    if (event.cron === COUNT_AT)
+      await countDays(env, ROUTES, event.scheduledTime);
+  },
 };
+
+async function stats(request, env) {
+  const file = await env.ARCHIVE.get(STATS);
+  if (!file) return env.ASSETS.fetch(new URL("/data/stats.json", request.url));
+  return new Response(file.body, {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": `public, max-age=${STATS_CACHE}`,
+    },
+  });
+}
 
 // A snapshot is { trains: [{ id, line, from, to, progress }] }: what `show()` in
 // public/js/trains.js takes, less the passengers. A page that stops getting them falls back on
@@ -52,6 +79,9 @@ export class LiveHub extends DurableObject {
     );
     ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS samples (at INTEGER PRIMARY KEY, vehicles TEXT NOT NULL)",
+    );
+    ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS outbox (at INTEGER PRIMARY KEY, vehicles TEXT NOT NULL)",
     );
     ctx.blockConcurrencyWhile(async () => {
       if ((await ctx.storage.getAlarm()) == null)
@@ -110,14 +140,49 @@ export class LiveHub extends DurableObject {
       for (const [id, { heard, ...row }] of this.seen)
         if (now - heard > RECORD) this.seen.delete(id);
         else rows.push(row);
-      sql.exec(
-        "INSERT OR REPLACE INTO samples VALUES (?, ?)",
-        Math.round(now),
-        JSON.stringify(rows),
-      );
+      for (const table of this.env.LAKE ? ["samples", "outbox"] : ["samples"])
+        sql.exec(
+          `INSERT OR REPLACE INTO ${table} VALUES (?, ?)`,
+          Math.round(now),
+          JSON.stringify(rows),
+        );
     }
     if (!this.viewers.size) this.rest();
     await this.flush(now);
+    await this.stream();
+  }
+
+  // Sends the outbox to the lake, oldest first, up to SEND bytes a time. What doesn't go waits for
+  // the next minute; past OUTBOX samples it is dropped, since the Parquet files still have it.
+  async stream() {
+    if (!this.env.LAKE) return;
+    const { sql } = this.ctx.storage;
+    const waiting = sql.exec("SELECT COUNT(*) AS n FROM outbox").one().n;
+    if (waiting > OUTBOX) {
+      sql.exec(
+        "DELETE FROM outbox WHERE at NOT IN (SELECT at FROM outbox ORDER BY at DESC LIMIT ?)",
+        OUTBOX,
+      );
+      console.warn(`lake: dropped ${waiting - OUTBOX} samples`);
+    }
+    const batch = [];
+    let bytes = 0;
+    for (const row of sql.exec("SELECT at, vehicles FROM outbox ORDER BY at")) {
+      if (batch.length && bytes + row.vehicles.length > SEND) break;
+      batch.push(row);
+      bytes += row.vehicles.length;
+    }
+    if (!batch.length) return;
+    try {
+      await this.env.LAKE.send(
+        batch.flatMap(({ at, vehicles }) =>
+          JSON.parse(vehicles).map((row) => lakeRow(at, row)),
+        ),
+      );
+      sql.exec("DELETE FROM outbox WHERE at <= ?", batch.at(-1).at);
+    } catch (error) {
+      console.error("lake:", error);
+    }
   }
 
   // Waits for every feed's say: WARM from the dial at least, up to HOLD for a slow one.

@@ -92,7 +92,7 @@ export function trainsSql(d, routes, table = TABLES.positions) {
     .map((r) => `SELECT ${quote(r)} AS route`)
     .join(" UNION ALL ");
   return `WITH seen AS (
-  SELECT sampled_at AS t, date_part('epoch', sampled_at) AS secs, route_code AS route,
+  SELECT DISTINCT sampled_at AS t, date_part('epoch', sampled_at) AS secs, route_code AS route,
     vehicle_id AS id, trip_id, date_part('epoch', reported_at) AS heard, lat, lon,
     direction_id, stop_id, CASE WHEN stop_sequence = 1 THEN 1 ELSE 0 END AS waiting
   FROM ${table}

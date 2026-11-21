@@ -1,0 +1,9 @@
+{
+  "fields": [
+    { "name": "network", "type": "string", "required": true },
+    { "name": "feed", "type": "string", "required": true },
+    { "name": "trip_id", "type": "string", "required": true },
+    { "name": "stop_sequence", "type": "int32", "required": true },
+    { "name": "arrival", "type": "int32", "required": true }
+  ]
+}

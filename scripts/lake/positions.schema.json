@@ -1,0 +1,17 @@
+{
+  "fields": [
+    { "name": "sampled_at", "type": "timestamp", "required": true },
+    { "name": "vehicle_id", "type": "string", "required": true },
+    { "name": "route_code", "type": "string", "required": false },
+    { "name": "trip_id", "type": "string", "required": false },
+    { "name": "start_date", "type": "string", "required": false },
+    { "name": "start_time", "type": "string", "required": false },
+    { "name": "direction_id", "type": "int32", "required": false },
+    { "name": "stop_id", "type": "string", "required": false },
+    { "name": "stop_sequence", "type": "int32", "required": false },
+    { "name": "status", "type": "string", "required": false },
+    { "name": "reported_at", "type": "timestamp", "required": false },
+    { "name": "lat", "type": "float64", "required": false },
+    { "name": "lon", "type": "float64", "required": false }
+  ]
+}

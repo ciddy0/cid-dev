@@ -1,5 +1,5 @@
 // The stats screen: for the day picked, how many trains were out, hour by hour, a block a line.
-// The numbers are data/stats.json, as written by scripts/build-stats.mjs.
+// The numbers come from /stats: stats/latest.json in R2, which the daily job in worker/lake.js writes.
 import { onLang, t } from "./lang.js";
 import { lineColor, lineInk } from "./network.js";
 import { prefs } from "./prefs.js";
@@ -42,7 +42,7 @@ export async function stats(map) {
     list = root.querySelector(".lines"),
     note = root.querySelector(".note");
 
-  const days = await fetch("data/stats.json")
+  const days = await fetch("/stats")
     .then((res) => (res.ok ? res.json() : {}))
     .then((json) => json.days ?? [])
     .catch(() => []);
