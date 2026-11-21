@@ -40,7 +40,7 @@ output is committed.
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `fetch-gtfs.mjs`                              | command: downloads the rail feed, and the G Line's rows of the bus feed                                  |
 | `build-map.mjs`                               | command: reads the tables, builds, lays out, writes `metro.json`, reports                                |
-| `build-stats.mjs`                             | command: the archive files in `data/raw/archive/` → `stats.json` (needs `duckdb`)                        |
+| `build-stats.mjs`                             | command: runs the SQL of `worker/stats.js` over `data/raw/archive/` in DuckDB → `stats.json`             |
 | `lib/network.mjs`                             | GTFS tables → lines and stations, geographic                                                             |
 | `lib/schematize.mjs`                          | geographic → schematic: the layout, steered by `data/overrides.json` (documented at the top of the file) |
 | `lib/csv.mjs`, `lib/vec.mjs`, `lib/paths.mjs` | CSV parser, vector maths, where files live                                                               |
@@ -80,12 +80,13 @@ the page, which is what lets `test/` run them under Node. Keep them that way.
 | `index.js`   | the `/live` websocket, `/live/history`, and the hub: one Durable Object that listens to LA Metro's vehicle positions while anyone is watching and sends every visitor a snapshot each few seconds. Once a minute, watched or not, it stores a snapshot, and keeps 65 minutes of them. The same minute it notes what the feed said about every vehicle, and every six hours writes those notes to R2 as one file |
 | `adapt.js`   | one vehicle of Metro's feed → a train of a line between two stations, using `metro.json`; and `unique()`, which of two trains the feed names twice to keep                                                                                                                                                                                                                                                      |
 | `archive.js` | the archive, less the bucket: one vehicle of the feed → a flat row, which six hours a time falls in and the file they are kept as, rows → Parquet                                                                                                                                                                                                                                                               |
+| `stats.js`   | the stats screen's SQL for one LA day, in what Basin SQL runs: trains out an hour, and late arrivals against the day's timetable                                                                                                                                                                                                                                                                                |
 
 The page shows the timetable when there is neither a record nor a snapshot to go on, and again
 whenever the snapshots stop. The record starts with the first visit after a deploy, so the very
 first one gets no catch-up.
 
-`adapt.js` and `archive.js` never touch the network or the bucket, so `test/` runs them too.
+`adapt.js`, `archive.js` and `stats.js` never touch the network or the bucket, so `test/` runs them too.
 
 ## The archive
 
@@ -216,13 +217,14 @@ the query:
 - **Runs**: on the 801 one `trip_id` is several trains at once, a `start_time` each. A run is
   (`start_date`, `trip_id`, `start_time`).
 - **A train named twice**: the feed can give one train two ids, mostly on the 801 (1 row in 4
-  there). `unique()` in `worker/adapt.js` says which of two to keep, and the map and
-  `scripts/build-stats.mjs` both go by it. The archive keeps every row, so anything else that
+  there). `unique()` in `worker/adapt.js` says which of two to keep, and the map and the SQL
+  in `worker/stats.js` both go by it. The archive keeps every row, so anything else that
   counts trains has to do the same.
-- **Timetables**: not tried yet. gitlab.com/LACMTA/gtfs_rail has a commit most nights but not
-  all (none on 15 or 16 November), so a day without one has to match the last before it. The
-  bus timetable, for the 901, last changed on 11 October. If trips don't match, the hub has to
-  start keeping its own copy, so try this first.
+- **Timetables**: a day's trips match the last rail timetable published on or before it
+  (gitlab.com/LACMTA/gtfs_rail, Tuesday to Saturday at 01:30). The 901's is in the bus feed,
+  last changed on 11 October. The 801's runs can't be matched to theirs: their start times
+  are when the trains really left. For late arrivals, put each `stop_times.txt` in
+  `data/raw/timetables/rail/<date published>/` (or `bus/`).
 
 ### The stats screen
 
@@ -237,7 +239,9 @@ minutes, and a train the feed names twice counts once, as on the map. The number
 npm run stats
 ```
 
-and commit the file. Nothing about trips, stops or lateness is on it yet.
+and commit the file. Each day also gets `late`: per line but the 801, the arrivals measured, how
+many were 5+ minutes late, and `off` when most were 10+ minutes late (planned work, not
+lateness). The screen doesn't show it yet.
 
 Then the rest of the numbers: see [TO-DO.md](TO-DO.md).
 

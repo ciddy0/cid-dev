@@ -180,16 +180,22 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
 - [ ] Check-up, around 2026-11-18: questions 5 and 6 under "Check-up" in `README.md` (the
       timetable in `data/raw/` is of 2026-11-10, too old to match trips against; the cost is
       in the dashboard), and 1 and 2 again for the days since the fix
-- [ ] Timetables: a trip id only matches the `stop_times.txt` of its own day (79 of 79 rail
-      trips, against 37 of 79 in a copy four days old). Fetch each day's from the history of
-      gitlab.com/LACMTA/gtfs_rail, or have the hub keep a copy
+- [x] Timetables: a day's trips match the last rail timetable published on or before it, and
+      GitLab keeps every version, so the hub needn't keep a copy (2026-11-21)
 - [ ] The numbers: a weekly GitHub Action runs DuckDB over the week's files and the timetable
       and writes `stats/latest.json` to R2: stops made per train and per line, arrivals 5+
       minutes late, and how much of the week is missing
 - [x] The page, a first one (2026-11-16): the graph in the corner of the map opens a stats
       screen (`public/js/stats.js`) with the trains out each hour of a day, from
       `public/data/stats.json`, which `npm run stats` builds from the downloaded files
-- [ ] Build `stats.json` without me: the weekly Action above, or a route of the Worker
+- [ ] Build `stats.json` without me: the archive as Iceberg tables, Basin SQL once a day
+      (the plan of 2026-11-21). Step 1 done 2026-11-21: `worker/stats.js` holds the SQL for
+      one LA day, trains out and late arrivals, and `npm run stats` runs it in DuckDB. It gives
+      the old `stats.json` exactly for 14 to 16 November. Next: the spike on scratch resources
+- [ ] `pick()` in `worker/stats.js` falls back to an older timetable when a day's isn't there,
+      and trips it doesn't list just drop out. The daily job should skip such a day instead
+- [ ] Show late arrivals on the stats screen (`late` in `stats.json`): the 801 "not measured",
+      a line that's `off` "didn't follow the timetable"
 - [x] A train named twice (2026-11-16): a set of cars that has been split up goes on reporting
       from the yard under its old id, and a train on the line can turn up under a second id.
       `unique()` in `worker/adapt.js` keeps one of two trains with a car in common, or within
