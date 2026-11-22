@@ -20,16 +20,17 @@ const local = JSON.parse(
     "-json",
     "-c",
     `SELECT strftime(timezone('America/Los_Angeles', timezone('UTC', sampled_at)), '%Y-%m-%d')
-        AS date, count(*) AS rows
+        AS date, count(*) AS rows, epoch(max(sampled_at)) AS last
       FROM read_parquet('${files}', hive_partitioning = false) GROUP BY 1 ORDER BY 1`,
   ]),
 );
 const stamp = (at) => `'${new Date(at * 1000).toISOString().slice(0, 19)}Z'`;
 let bad = 0;
-for (const { date, rows } of local) {
+for (const { date, rows, last } of local) {
   const d = day(date);
+  const end = Math.min(d.end, last + 1);
   const window = `FROM metro.vehicle_positions
-    WHERE sampled_at >= ${stamp(d.start)} AND sampled_at < ${stamp(d.end)}`;
+    WHERE sampled_at >= ${stamp(d.start)} AND sampled_at < ${stamp(end)}`;
   const [{ n }] = await basin(env, `SELECT count(*) AS n ${window}`);
   const [{ u }] = await basin(
     env,
