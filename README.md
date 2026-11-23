@@ -64,7 +64,7 @@ them up, roughly in this order:
 | `menu.js`                          | the menu and the screens it flies to (map, resume, about, settings), and from the map to the stats and back; starts and stops the trains                                                                           |
 | `intro.js`                         | the lines drawing themselves in as the page opens                                                                                                                                                                  |
 | `resume.js`                        | the resume screen: the jobs as stops along a line, the picked one a card on it with a little map of where the job was                                                                                              |
-| `stats.js`                         | the stats screen: how many trains were out on a day, hour by hour and line by line, from `stats.json`                                                                                                              |
+| `stats.js`                         | the stats screen: how many trains were out on a day, hour by hour and line by line, and the share late on each line, day by day                                                                                    |
 | `settings.js`, `prefs.js`          | the settings (language, night mode, colorblind mode, coastline, motion, sound, volume), stored in `localStorage`                                                                                                   |
 | `lang.js`                          | every word on the page, in English and Spanish                                                                                                                                                                     |
 | `sound.js`                         | the synthesized piano: a note as a train arrives on screen, menu figures, the hum                                                                                                                                  |
@@ -271,7 +271,8 @@ npm run stats
 
 and commit the file. Each day also gets `late`: per line but the 801, the arrivals measured, how
 many were 5+ minutes late, and `off` when most were 10+ minutes late (planned work, not
-lateness). The screen doesn't show it yet.
+lateness). Under the trains the screen shows it day by day: each line's share late over the
+7 days around the one picked, which is lit up. An off day or the 801 gets a stub, not a bar.
 
 Then the rest of the numbers: see [TO-DO.md](TO-DO.md).
 

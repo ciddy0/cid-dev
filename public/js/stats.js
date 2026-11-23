@@ -7,6 +7,8 @@ import { chime } from "./sound.js";
 
 const DAY_MINUTES = 1440;
 const ENOUGH = 0.5;
+const WEEK = 7;
+const LATE_TOP = 0.2;
 const CHIME_UP = [74, 81];
 const CHIME_DOWN = [74, 69];
 
@@ -22,6 +24,14 @@ const hour = (date, h) =>
     locale(),
     { hour: "numeric" },
   );
+
+const narrow = (date) =>
+  new Date(`${date}T12:00`).toLocaleDateString(locale(), { weekday: "narrow" });
+// Off days and untimed lines have no share, which isn't the same as none late.
+const lateShare = (d, line) => {
+  const l = d.late?.[line.route];
+  return l && !l.off && l.arrivals ? l.late / l.arrivals : null;
+};
 
 function node(tag, className, text) {
   const made = document.createElement(tag);
@@ -40,7 +50,12 @@ export async function stats(map) {
     readout = root.querySelector(".readout"),
     caption = root.querySelector(".caption"),
     list = root.querySelector(".lines"),
-    note = root.querySelector(".note");
+    note = root.querySelector(".note"),
+    late = root.querySelector(".late"),
+    [lateStat] = late.getElementsByClassName("stat"),
+    [lateCaption, lateNote] = late.getElementsByClassName("caption"),
+    lateLines = late.querySelector(".late-lines"),
+    lateDays = late.querySelector(".late-days");
 
   const days = await fetch("/stats")
     .then((res) => (res.ok ? res.json() : {}))
@@ -126,6 +141,63 @@ export async function stats(map) {
       if (e.pointerType === "mouse") say(); // a finger's pick stays up
     };
     say();
+
+    late.hidden = !d.late;
+    if (d.late) {
+      const from = Math.max(0, Math.min(at - 3, days.length - WEEK)),
+        week = days.slice(from, from + WEEK);
+      const top = Math.max(
+        LATE_TOP,
+        ...week.flatMap((w) => lines.map((line) => lateShare(w, line) ?? 0)),
+      );
+      const timed = lines.filter((line) => lateShare(d, line) != null);
+      const sum = (key) =>
+        timed.reduce((n, line) => n + d.late[line.route][key], 0);
+      lateStat.firstChild.textContent = sum("arrivals")
+        ? `${Math.round((sum("late") / sum("arrivals")) * 100)}%`
+        : "–";
+      lateStat.lastChild.textContent = t("statsLate");
+      lateCaption.textContent = t("statsLateChart");
+      lateNote.textContent = t("statsLateNote");
+      lateLines.replaceChildren(
+        ...lines.map((line) => {
+          const row = node("li"),
+            chip = node("span", "chip", line.id),
+            bars = node("span", "week"),
+            share = lateShare(d, line);
+          chip.style.background = lineColor(line);
+          chip.style.color = lineInk(line);
+          bars.setAttribute("aria-hidden", "true");
+          for (const w of week) {
+            const s = lateShare(w, line),
+              bar = node("i", s == null ? "none" : "");
+            if (s != null) {
+              bar.style.height = `${(s / top) * 100}%`;
+              bar.style.background = lineColor(line);
+            }
+            bar.classList.toggle("on", w === d);
+            bars.append(bar);
+          }
+          row.append(
+            chip,
+            bars,
+            share != null
+              ? node("b", "", `${Math.round(share * 100)}%`)
+              : node(
+                  "span",
+                  "why",
+                  t(d.late[line.route]?.off ? "statsOff" : "statsUntimed"),
+                ),
+          );
+          return row;
+        }),
+      );
+      const labels = node("span", "week");
+      labels.append(
+        ...week.map((w) => node("span", w === d ? "on" : "", narrow(w.date))),
+      );
+      lateDays.replaceChildren(node("span"), labels, node("span"));
+    }
 
     note.textContent = t(
       "statsNote",

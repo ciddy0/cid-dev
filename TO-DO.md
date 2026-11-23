@@ -204,8 +204,8 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
       and whether Basin Catalog's compaction runs
 - [ ] `pick()` in `worker/stats.js` falls back to an older timetable when a day's isn't there,
       and trips it doesn't list just drop out. The daily job should skip such a day instead
-- [ ] Show late arrivals on the stats screen (`late` in `stats.json`): the 801 "not measured",
-      a line that's `off` "didn't follow the timetable"
+- [x] Show late arrivals on the stats screen (2026-11-22): each line's share 5+ minutes late
+      over the week around the day picked, the 801 "not timed", an `off` day "off timetable"
 - [x] A train named twice (2026-11-16): a set of cars that has been split up goes on reporting
       from the yard under its old id, and a train on the line can turn up under a second id.
       `unique()` in `worker/adapt.js` keeps one of two trains with a car in common, or within

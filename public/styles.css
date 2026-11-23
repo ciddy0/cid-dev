@@ -797,7 +797,73 @@ button:focus-visible {
 .lines b {
   margin-left: auto;
 }
-.lines .chip {
+.late {
+  display: grid;
+  justify-items: center;
+  gap: 0.45em;
+  width: 100%;
+  margin-top: 1em;
+}
+.late-lines {
+  display: grid;
+  gap: 0.6em;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.late-lines li,
+.late-days {
+  display: grid;
+  grid-template-columns: 1.2em 1fr 5.5em;
+  align-items: end;
+  gap: 0.7em;
+  width: 100%;
+}
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr)); /* WEEK in stats.js */
+  align-items: end;
+  gap: 0.3em;
+  height: 2.1em;
+  border-bottom: 1px solid var(--muted);
+}
+.week i {
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  opacity: var(--dim);
+  transition: opacity var(--quick);
+}
+.week i.none {
+  background: var(--muted);
+}
+.week i.on,
+.late-days .on {
+  opacity: 1;
+}
+.late-lines b,
+.late-lines .why {
+  text-align: right;
+}
+.late-lines .why {
+  font-size: 0.75em;
+  opacity: var(--quiet);
+}
+.late-days {
+  font-size: 0.75em;
+  opacity: var(--quiet);
+  margin-top: -0.3em;
+}
+.late-days .week {
+  height: auto;
+  border: 0;
+  text-align: center;
+}
+.late-days .on {
+  font-weight: 700;
+}
+.lines .chip,
+.late-lines .chip {
   display: grid;
   place-items: center;
   width: 1.6em;
