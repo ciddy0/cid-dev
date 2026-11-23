@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="870" viewBox="0 0 1600 870"
+     font-family="Arial, Helvetica, 'Liberation Sans', sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 16 12" refX="16" refY="6"
+            markerWidth="16" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L16 6 L0 12 Z" fill="#000"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="870" fill="#FFFFFF"/>
+  <rect x="22" y="22" width="1556" height="778" rx="18" fill="none" stroke="#000" stroke-width="2"/>
+
+  <!-- Row 1: positions, every minute -->
+  <rect x="60" y="110" width="200" height="90" rx="12" fill="#F6F6F6" stroke="#000" stroke-width="2.5"/>
+  <text x="160" y="148" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Metro feed</text>
+  <text x="160" y="174" text-anchor="middle" font-size="17" font-weight="700" fill="#000">train positions</text>
+
+  <rect x="410" y="110" width="220" height="90" rx="12" fill="#F2A9AA" stroke="#000" stroke-width="2.5"/>
+  <text x="520" y="148" text-anchor="middle" font-size="21" font-weight="700" fill="#000">LiveHub</text>
+  <text x="520" y="174" text-anchor="middle" font-size="17" font-weight="700" fill="#000">Durable Object, outbox</text>
+
+  <rect x="760" y="110" width="230" height="90" rx="12" fill="#CCE7E5" stroke="#000" stroke-width="2.5"/>
+  <text x="875" y="148" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Positions stream</text>
+  <text x="875" y="174" text-anchor="middle" font-size="17" font-weight="700" fill="#000">and sink</text>
+
+  <line x1="260" y1="155" x2="410" y2="155" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="335" y="141" text-anchor="middle" font-size="19" font-weight="700" fill="#000">each minute</text>
+  <line x1="630" y1="155" x2="760" y2="155" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="695" y="141" text-anchor="middle" font-size="19" font-weight="700" fill="#000">send()</text>
+  <line x1="990" y1="155" x2="1130" y2="155" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="1060" y="141" text-anchor="middle" font-size="19" font-weight="700" fill="#000">60 s roll</text>
+
+  <!-- Row 2: timetables, 10:00 UTC -->
+  <rect x="60" y="270" width="200" height="90" rx="12" fill="#F6F6F6" stroke="#000" stroke-width="2.5"/>
+  <text x="160" y="308" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Metro GTFS</text>
+  <text x="160" y="334" text-anchor="middle" font-size="17" font-weight="700" fill="#000">timetables, GitLab</text>
+
+  <rect x="410" y="270" width="220" height="90" rx="12" fill="#F2A9AA" stroke="#000" stroke-width="2.5"/>
+  <text x="520" y="308" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Cron 10:00 UTC</text>
+  <text x="520" y="334" text-anchor="middle" font-size="17" font-weight="700" fill="#000">loadTimetables</text>
+
+  <rect x="760" y="270" width="230" height="90" rx="12" fill="#CCE7E5" stroke="#000" stroke-width="2.5"/>
+  <text x="875" y="308" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Timetable stream</text>
+  <text x="875" y="334" text-anchor="middle" font-size="17" font-weight="700" fill="#000">and sink</text>
+
+  <line x1="260" y1="315" x2="410" y2="315" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="335" y="301" text-anchor="middle" font-size="19" font-weight="700" fill="#000">new ones</text>
+  <line x1="630" y1="315" x2="760" y2="315" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="695" y="301" text-anchor="middle" font-size="19" font-weight="700" fill="#000">send()</text>
+  <line x1="990" y1="315" x2="1130" y2="315" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+
+  <!-- Hero: the Iceberg tables -->
+  <rect x="1130" y="80" width="380" height="300" rx="14" fill="#89DFA3" stroke="#000" stroke-width="3"/>
+  <text x="1320" y="128" text-anchor="middle" font-size="30" font-weight="700" fill="#000">Iceberg tables</text>
+  <text x="1320" y="156" text-anchor="middle" font-size="17" font-weight="700" fill="#000">Basin Catalog, R2 cid-dev-lake</text>
+  <g transform="translate(1194,196)">
+    <path d="M0 10 v34 a26 10 0 0 0 52 0 v-34 z" fill="#A8E6B8" stroke="#000" stroke-width="2.5"/>
+    <ellipse cx="26" cy="10" rx="26" ry="10" fill="#FFF" stroke="#000" stroke-width="2.5"/>
+    <path d="M0 24 a26 10 0 0 0 52 0" fill="none" stroke="#000" stroke-width="2"/>
+    <path d="M0 34 a26 10 0 0 0 52 0" fill="none" stroke="#000" stroke-width="2"/>
+  </g>
+  <text x="1220" y="290" text-anchor="middle" font-size="17" font-weight="700" fill="#000">vehicle_</text>
+  <text x="1220" y="312" text-anchor="middle" font-size="17" font-weight="700" fill="#000">positions</text>
+  <g transform="translate(1394,196)">
+    <path d="M0 10 v34 a26 10 0 0 0 52 0 v-34 z" fill="#A8E6B8" stroke="#000" stroke-width="2.5"/>
+    <ellipse cx="26" cy="10" rx="26" ry="10" fill="#FFF" stroke="#000" stroke-width="2.5"/>
+    <path d="M0 24 a26 10 0 0 0 52 0" fill="none" stroke="#000" stroke-width="2"/>
+    <path d="M0 34 a26 10 0 0 0 52 0" fill="none" stroke="#000" stroke-width="2"/>
+  </g>
+  <text x="1420" y="290" text-anchor="middle" font-size="17" font-weight="700" fill="#000">stop_</text>
+  <text x="1420" y="312" text-anchor="middle" font-size="17" font-weight="700" fill="#000">times</text>
+
+  <!-- Row 3: the daily count, 12:00 UTC -->
+  <rect x="775" y="470" width="200" height="90" rx="12" fill="#F2A9AA" stroke="#000" stroke-width="2.5"/>
+  <text x="875" y="508" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Cron 12:00 UTC</text>
+  <text x="875" y="534" text-anchor="middle" font-size="17" font-weight="700" fill="#000">countDays</text>
+
+  <rect x="1230" y="470" width="180" height="90" rx="12" fill="#96BCF9" stroke="#000" stroke-width="2.5"/>
+  <text x="1320" y="522" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Basin SQL</text>
+
+  <line x1="1320" y1="380" x2="1320" y2="470" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="1334" y="431" font-size="19" font-weight="700" fill="#000">~17 MB a day</text>
+  <line x1="975" y1="502" x2="1230" y2="502" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="1102" y="488" text-anchor="middle" font-size="19" font-weight="700" fill="#000">1. SQL, new days</text>
+  <line x1="1230" y1="528" x2="975" y2="528" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="1102" y="556" text-anchor="middle" font-size="19" font-weight="700" fill="#000">2. rows</text>
+
+  <!-- Row 4: the read path -->
+  <rect x="760" y="650" width="230" height="90" rx="12" fill="#FBE9C3" stroke="#000" stroke-width="2.5"/>
+  <text x="875" y="688" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Stats file</text>
+  <text x="875" y="714" text-anchor="middle" font-size="17" font-weight="700" fill="#000">stats/latest.json, R2</text>
+
+  <line x1="875" y1="560" x2="875" y2="650" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="889" y="611" font-size="19" font-weight="700" fill="#000">3. write JSON</text>
+
+  <rect x="410" y="650" width="220" height="90" rx="12" fill="#F2A9AA" stroke="#000" stroke-width="2.5"/>
+  <text x="520" y="688" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Worker</text>
+  <text x="520" y="714" text-anchor="middle" font-size="17" font-weight="700" fill="#000">GET /stats</text>
+
+  <line x1="630" y1="682" x2="760" y2="682" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="695" y="668" text-anchor="middle" font-size="19" font-weight="700" fill="#000">get()</text>
+  <line x1="760" y1="708" x2="630" y2="708" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="695" y="736" text-anchor="middle" font-size="19" font-weight="700" fill="#000">file</text>
+
+  <g transform="translate(122,630)">
+    <path d="M6 84 v-10 a32 26 0 0 1 64 0 v10 z" fill="#5A5F6E" stroke="#2F2F2F" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="38" cy="24" r="16" fill="#E8A87C" stroke="#2F2F2F" stroke-width="2.5"/>
+    <path d="M22 26 a16 16 0 0 1 32 0 a16 10 0 0 0 -32 0 z" fill="#2F2F2F"/>
+    <rect x="23" y="54" width="30" height="22" rx="3" fill="#FFF" stroke="#2F2F2F" stroke-width="2.5"/>
+    <circle cx="38" cy="65" r="2.6" fill="#2F2F2F"/>
+    <path d="M14 76 h48 a4 4 0 0 1 4 4 a4 4 0 0 1 -4 4 h-48 a4 4 0 0 1 -4 -4 a4 4 0 0 1 4 -4 z" fill="#D5D8DE" stroke="#2F2F2F" stroke-width="2.5"/>
+    <text x="38" y="108" text-anchor="middle" font-size="17" font-weight="700" fill="#000">Stats screen</text>
+  </g>
+
+  <line x1="210" y1="682" x2="410" y2="682" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="310" y="668" text-anchor="middle" font-size="19" font-weight="700" fill="#000">GET /stats</text>
+  <line x1="410" y1="708" x2="210" y2="708" stroke="#000" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="310" y="736" text-anchor="middle" font-size="19" font-weight="700" fill="#000">JSON, kept 1 h</text>
+
+  <text x="800" y="840" text-anchor="middle" font-family="Lora, Georgia, 'Liberation Serif', serif"
+        font-size="17" fill="#878787">Trains Stream Into Iceberg; One Daily Job Turns Them Into a Cached Stats File</text>
+</svg>
