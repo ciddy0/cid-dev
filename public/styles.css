@@ -753,6 +753,9 @@ button:focus-visible {
 .stats .caption {
   margin-top: 0.7em;
 }
+.stats .note.partial {
+  opacity: 1;
+}
 .chart {
   display: grid;
   grid-template-columns: repeat(24, 1fr);

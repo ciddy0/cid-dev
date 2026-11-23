@@ -69,18 +69,26 @@ const TEXT = {
       <p>Data from LA Metro</p>
       <p>Colorblind palette by Okabe &amp; Ito</p>
       <p>Inspired by Beck, Vignelli and Mini Metro</p>`,
-    statsMost: (hour) => `trains out at ${hour}, the busiest hour`,
+    statsMost: (hour, partial) =>
+      `trains out at ${hour}, the busiest hour${partial ? " recorded" : ""}`,
     statsChart: "Trains out, hour by hour",
     statsHour: (hour, n) => `${hour}: ${n} ${n === 1 ? "train" : "trains"} out`,
     statsAt: (hour) => `At ${hour}, by line`,
     statsLine: (id) => `${id} Line`,
     statsNote: (share) => `Recorded ${share}% of this day.`,
     statsNone: "No numbers yet.",
-    statsLate: "of arrivals were 5+ minutes late",
+    statsLate: (n, of) =>
+      n < of
+        ? `of arrivals on ${n} of ${of} lines were 5+ minutes late`
+        : "of arrivals were 5+ minutes late",
     statsLateChart: "Share 5+ minutes late, day by day",
     statsOff: "off timetable",
     statsUntimed: "not timed",
     statsLateNote: "Late: at a stop 5 or more minutes after the timetable.",
+    statsUntimedNote:
+      "Not timed: the timetable says how often these trains come, not when.",
+    statsOffNote:
+      "Off timetable: most trains ran 10+ minutes off it, so it likely wasn't the one in use.",
     lang: "Language",
     night: "Night Mode",
     colorblind: "Colorblind Mode",
@@ -172,7 +180,8 @@ const TEXT = {
       <p>Datos de LA Metro</p>
       <p>Paleta para daltónicos de Okabe e Ito</p>
       <p>Inspirado en Beck, Vignelli y Mini Metro</p>`,
-    statsMost: (hour) => `trenes en servicio en la hora pico, ${hour}`,
+    statsMost: (hour, partial) =>
+      `trenes en servicio en la hora pico${partial ? " registrada" : ""}, ${hour}`,
     statsChart: "Trenes en servicio, hora por hora",
     statsHour: (hour, n) =>
       `${hour}: ${n} ${n === 1 ? "tren" : "trenes"} en servicio`,
@@ -180,12 +189,19 @@ const TEXT = {
     statsLine: (id) => `Línea ${id}`,
     statsNote: (share) => `Se registró el ${share}% de este día.`,
     statsNone: "Todavía no hay números.",
-    statsLate: "de las llegadas, con 5+ minutos de retraso",
+    statsLate: (n, of) =>
+      n < of
+        ? `de las llegadas en ${n} de ${of} líneas, con 5+ minutos de retraso`
+        : "de las llegadas, con 5+ minutos de retraso",
     statsLateChart: "Parte con 5+ minutos de retraso, día por día",
     statsOff: "fuera de horario",
     statsUntimed: "sin medir",
     statsLateNote:
       "Retraso: llegar a una parada 5 minutos o más después del horario.",
+    statsUntimedNote:
+      "Sin medir: el horario dice cada cuánto pasan estos trenes, no a qué hora.",
+    statsOffNote:
+      "Fuera de horario: la mayoría de los trenes iba a 10+ minutos de él, así que quizá no era el vigente.",
     lang: "Idioma",
     night: "Modo nocturno",
     colorblind: "Modo daltónico",

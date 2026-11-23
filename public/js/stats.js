@@ -7,6 +7,7 @@ import { chime } from "./sound.js";
 
 const DAY_MINUTES = 1440;
 const ENOUGH = 0.5;
+const WHOLE = 0.9;
 const WEEK = 7;
 const LATE_TOP = 0.2;
 const CHIME_UP = [74, 81];
@@ -78,12 +79,13 @@ export async function stats(map) {
     const top = Math.max(...totals, 1),
       busiest = totals.indexOf(Math.max(...totals));
     const title = t("statsChart");
+    const partial = d.minutes < WHOLE * DAY_MINUTES;
 
     shown.textContent = day(d.date);
     for (const arrow of stepper.querySelectorAll("[data-by]"))
       arrow.setAttribute("aria-disabled", !(at + +arrow.dataset.by in days));
     most.firstChild.textContent = totals[busiest];
-    most.lastChild.textContent = t("statsMost", hour(d.date, busiest));
+    most.lastChild.textContent = t("statsMost", hour(d.date, busiest), partial);
 
     chart.setAttribute("aria-label", title);
     chart.replaceChildren(
@@ -156,9 +158,22 @@ export async function stats(map) {
       lateStat.firstChild.textContent = sum("arrivals")
         ? `${Math.round((sum("late") / sum("arrivals")) * 100)}%`
         : "–";
-      lateStat.lastChild.textContent = t("statsLate");
+      lateStat.lastChild.textContent = t(
+        "statsLate",
+        timed.length,
+        lines.length,
+      );
       lateCaption.textContent = t("statsLateChart");
-      lateNote.textContent = t("statsLateNote");
+      const off = lines.filter((line) => d.late[line.route]?.off).length;
+      lateNote.replaceChildren(
+        ...[
+          "statsLateNote",
+          timed.length + off < lines.length && "statsUntimedNote",
+          off && "statsOffNote",
+        ]
+          .filter(Boolean)
+          .flatMap((key, i) => (i ? [node("br"), t(key)] : [t(key)])),
+      );
       lateLines.replaceChildren(
         ...lines.map((line) => {
           const row = node("li"),
@@ -199,6 +214,8 @@ export async function stats(map) {
       lateDays.replaceChildren(node("span"), labels, node("span"));
     }
 
+    (partial ? most : late).after(note);
+    note.classList.toggle("partial", partial);
     note.textContent = t(
       "statsNote",
       Math.min(100, Math.round((d.minutes / DAY_MINUTES) * 100)),
