@@ -192,14 +192,14 @@ weekly page of numbers. How it works and how to look at it: "The archive" in `RE
       the old `stats.json` exactly, in DuckDB and in Basin SQL (the spike: see "The lake" in
       `README.md`). The hub streams from an `outbox`, and `worker/lake.js` loads timetables and
       counts days on two crons
-- [ ] The lake in production: create `cid-dev-lake` and its streams, sinks and pipelines (names
+- [x] The lake in production (2026-11-22): create `cid-dev-lake` and its streams, sinks and pipelines (names
       and schemas in `scripts/lake/`), add the two `pipelines` bindings and the crons to
       `wrangler.jsonc`, set `BASIN_TOKEN`, deploy, backfill with `scripts/lake-load.mjs` up to the
       first streamed sample, load the bus timetable of 2026-10-11, seed `stats/latest.json`, and
       check with `scripts/lake-check.mjs`
 - [ ] After a few weeks of `lake-check` matching: drop the Parquet flush (`flush()`, `samples`,
       `hyparquet-writer`) and `public/data/stats.json`
-- [ ] Delete the bucket `cid-dev-spike` once its lifecycle rule has emptied it (from 2026-11-22)
+- [x] Delete the bucket `cid-dev-spike` (2026-11-22)
 - [ ] The spike didn't answer: the largest `--roll-interval`, where a dropped record shows up,
       and whether Basin Catalog's compaction runs
 - [ ] `pick()` in `worker/stats.js` falls back to an older timetable when a day's isn't there,
