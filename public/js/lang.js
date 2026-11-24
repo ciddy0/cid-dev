@@ -77,14 +77,18 @@ const TEXT = {
     statsLine: (id) => `${id} Line`,
     statsNote: (share) => `Recorded ${share}% of this day.`,
     statsNone: "No numbers yet.",
-    statsLate: (n, of) =>
-      n < of
-        ? `of arrivals on ${n} of ${of} lines were 5+ minutes late`
-        : "of arrivals were 5+ minutes late",
+    statsOneIn: (n) => `1 in ${n}`,
+    statsLate: "stops, the train was 5+ minutes late",
+    statsNoneLate: "No",
+    statsLateNone: "stops were 5+ minutes late",
+    statsLateSub: (ids) =>
+      "Every stop every train made, against the timetable." +
+      (ids.length
+        ? ` Not counted: the ${new Intl.ListFormat("en-US").format(ids)} ${ids.length > 1 ? "Lines" : "Line"}.`
+        : ""),
     statsLateChart: "Share 5+ minutes late, day by day",
     statsOff: "off timetable",
     statsUntimed: "not timed",
-    statsLateNote: "Late: at a stop 5 or more minutes after the timetable.",
     statsUntimedNote:
       "Not timed: the timetable says how often these trains come, not when.",
     statsOffNote:
@@ -189,15 +193,18 @@ const TEXT = {
     statsLine: (id) => `Línea ${id}`,
     statsNote: (share) => `Se registró el ${share}% de este día.`,
     statsNone: "Todavía no hay números.",
-    statsLate: (n, of) =>
-      n < of
-        ? `de las llegadas en ${n} de ${of} líneas, con 5+ minutos de retraso`
-        : "de las llegadas, con 5+ minutos de retraso",
+    statsOneIn: (n) => `1 de cada ${n}`,
+    statsLate: "paradas, el tren llegó con 5+ minutos de retraso",
+    statsNoneLate: "Ninguna",
+    statsLateNone: "parada tuvo 5+ minutos de retraso",
+    statsLateSub: (ids) =>
+      "Cada parada de cada tren, frente al horario." +
+      (ids.length
+        ? ` Sin contar: ${ids.length > 1 ? "las líneas" : "la línea"} ${new Intl.ListFormat("es-MX").format(ids)}.`
+        : ""),
     statsLateChart: "Parte con 5+ minutos de retraso, día por día",
     statsOff: "fuera de horario",
     statsUntimed: "sin medir",
-    statsLateNote:
-      "Retraso: llegar a una parada 5 minutos o más después del horario.",
     statsUntimedNote:
       "Sin medir: el horario dice cada cuánto pasan estos trenes, no a qué hora.",
     statsOffNote:

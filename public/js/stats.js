@@ -55,6 +55,7 @@ export async function stats(map) {
     late = root.querySelector(".late"),
     [lateStat] = late.getElementsByClassName("stat"),
     [lateCaption, lateNote] = late.getElementsByClassName("caption"),
+    lateSub = late.querySelector(".sub"),
     lateLines = late.querySelector(".late-lines"),
     lateDays = late.querySelector(".late-days");
 
@@ -155,25 +156,31 @@ export async function stats(map) {
       const timed = lines.filter((line) => lateShare(d, line) != null);
       const sum = (key) =>
         timed.reduce((n, line) => n + d.late[line.route][key], 0);
-      lateStat.firstChild.textContent = sum("arrivals")
-        ? `${Math.round((sum("late") / sum("arrivals")) * 100)}%`
-        : "–";
+      const share = sum("late") / sum("arrivals");
+      lateStat.firstChild.textContent =
+        share > 0
+          ? t("statsOneIn", Math.round(1 / share))
+          : share === 0
+            ? t("statsNoneLate")
+            : "–";
       lateStat.lastChild.textContent = t(
-        "statsLate",
-        timed.length,
-        lines.length,
+        share === 0 ? "statsLateNone" : "statsLate",
+      );
+      lateSub.textContent = t(
+        "statsLateSub",
+        lines.filter((line) => !timed.includes(line)).map((line) => line.id),
       );
       lateCaption.textContent = t("statsLateChart");
       const off = lines.filter((line) => d.late[line.route]?.off).length;
       lateNote.replaceChildren(
         ...[
-          "statsLateNote",
           timed.length + off < lines.length && "statsUntimedNote",
           off && "statsOffNote",
         ]
           .filter(Boolean)
           .flatMap((key, i) => (i ? [node("br"), t(key)] : [t(key)])),
       );
+      lateNote.hidden = !lateNote.childNodes.length;
       lateLines.replaceChildren(
         ...lines.map((line) => {
           const row = node("li"),
